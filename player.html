@@ -1,0 +1,49 @@
+<!doctype html><html><head><meta charset="utf-8"><title>BC vs RL route replay</title>
+<style>
+body{font:13px/1.4 system-ui,sans-serif;color:#0b0b0b;background:#fcfcfb;margin:12px}
+.row{display:flex;gap:14px;flex-wrap:wrap}.ctl{margin:6px 0;display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+canvas{border:1px solid #e1e0d9;background:#fff}.cap{color:#52514e;font-size:12px}
+select,button{font:inherit}
+</style></head><body>
+<div class="ctl">
+ policy type <select id="fam"></select> start <select id="start"></select> seed <select id="seed"></select>
+ <button id="play">pause</button> step <input id="t" type="range" min="0" max="300" value="0" style="width:260px"><span id="tl"></span>
+</div>
+<div class="row">
+ <div><div class="cap" id="capbc"></div><canvas id="bc" width="320" height="320"></canvas></div>
+ <div><div class="cap" id="caprl"></div><canvas id="rl" width="320" height="320"></canvas></div>
+</div>
+<p class="cap">Standard PushT actions (each action is the target point on the 512 × 512 px board), attention policies.
+Each colored dot is one rollout's pusher with its trail; the outline in the same color is that rollout's T.
+Colors are route modes (first 400 px of path) from clustering the BC and RL rollouts of this start together (same color =
+same route in both panels, grey = a route taken by a single rollout). Green = goal pose. A rollout stops moving when it
+ends (success, or 300 steps). Shown: 8 of 16 rollouts per policy type, start and seed; 6 representative
+starts x 3 seeds.</p>
+<script src="players_data.js"></script>
+<script>
+const D=window.MM_PLAYER,S=320/512;
+const fam=document.getElementById('fam'),st=document.getElementById('start'),sd=document.getElementById('seed');
+D.fams.forEach(f=>fam.add(new Option(f.toUpperCase()==='FLOW'?'flow':f.toUpperCase(),f)));
+D.starts.forEach(s=>st.add(new Option(s.label,s.idx)));[1,2,3].forEach(s=>sd.add(new Option(s,s)));
+let t=0,playing=true,maxT=1;
+function tee(ctx,x,y,a,fill,stroke,alpha){const R=[[[-60,30],[60,30],[60,0],[-60,0]],[[-15,30],[-15,120],[15,120],[15,30]]];
+ ctx.save();ctx.globalAlpha=alpha;for(const poly of R){ctx.beginPath();poly.forEach((v,i)=>{const vx=v[0],vy=v[1];
+ const wx=x+vx*Math.cos(a)-vy*Math.sin(a),wy=y+vx*Math.sin(a)+vy*Math.cos(a);i?ctx.lineTo(wx*S,wy*S):ctx.moveTo(wx*S,wy*S)});
+ ctx.closePath();if(fill){ctx.fillStyle=fill;ctx.fill()}if(stroke){ctx.strokeStyle=stroke;ctx.lineWidth=1;ctx.stroke()}}ctx.restore()}
+function cell(){return D.cells[fam.value+'|'+st.value+'|'+sd.value]}
+function draw(){const c=cell();if(!c)return;maxT=Math.max(...['bc','rl'].map(w=>Math.max(...c[w].map(r=>r.n))));
+ document.getElementById('t').max=maxT-1;document.getElementById('tl').textContent=' '+(t*D.stride)+' / '+((maxT-1)*D.stride);
+ for(const w of ['bc','rl']){const cv=document.getElementById(w),ctx=cv.getContext('2d');ctx.clearRect(0,0,320,320);
+  tee(ctx,256,256,Math.PI/4,'#1baf7a',null,0.2);
+  document.getElementById('cap'+w).textContent=(w==='bc'?'BC policy':'RL (OGPO 1M)')+': '+c[w+'_caption'];
+  for(const r of c[w]){const k=Math.min(t,r.n-1),col=r.c;const P=r.p;
+   tee(ctx,P[k*5+2],P[k*5+3],P[k*5+4]/1000,null,col,0.5);
+   ctx.strokeStyle=col;ctx.globalAlpha=0.55;ctx.lineWidth=1.2;ctx.beginPath();
+   for(let i=Math.max(0,k-40);i<=k;i++){const x=P[i*5]*S,y=P[i*5+1]*S;i===Math.max(0,k-40)?ctx.moveTo(x,y):ctx.lineTo(x,y)}ctx.stroke();
+   ctx.globalAlpha=1;ctx.fillStyle=col;ctx.beginPath();ctx.arc(P[k*5]*S,P[k*5+1]*S,4,0,7);ctx.fill();}}}
+function tick(){if(playing){t=(t+1)%maxT;document.getElementById('t').value=t}draw();setTimeout(tick,60)}
+[fam,st,sd].forEach(e=>e.onchange=()=>{t=0;draw()});
+document.getElementById('t').oninput=e=>{t=+e.target.value;playing=false;document.getElementById('play').textContent='play';draw()};
+document.getElementById('play').onclick=e=>{playing=!playing;e.target.textContent=playing?'pause':'play'};
+st.value=D.starts[0].idx;tick();
+</script></body></html>

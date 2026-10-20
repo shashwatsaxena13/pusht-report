@@ -1,0 +1,365 @@
+<!doctype html><html lang='en'><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'><title>6: MIP denoising tokenizers (MIP decoder and MIP encoder-decoder)</title><style>:root {
+  --ink: #1c1d22; --ink-2: #44464f; --muted: #6b6d76; --line: #e3e4e8; --soft: #f6f6f8;
+  --accent: #2a5db0; --accent-soft: #eaf0fa; --learned: #f3f8f3; --learned-line: #4f9a5f;
+  --pending: #fbf6ea; --pending-line: #c99a2e; --surface: #ffffff;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --ink: #ececef; --ink-2: #c4c6cc; --muted: #9a9ca4; --line: #34363d; --soft: #202228;
+    --accent: #8db4f5; --accent-soft: #1f2a3d; --learned: #1b261d; --learned-line: #6fbf7f;
+    --pending: #2a2518; --pending-line: #d9b45a; --surface: #16171b;
+  }
+  :root:not([data-theme="light"]) img, :root:not([data-theme="light"]) .diagram { background: #fff; border-radius: 6px; }
+}
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body {
+  margin: 0; background: var(--surface); color: var(--ink);
+  font-family: "Palatino Linotype", Palatino, "Book Antiqua", "TeX Gyre Pagella", Georgia, serif;
+  font-size: 17px; line-height: 1.6;
+}
+.toc {
+  position: fixed; top: 0; left: 0; width: 230px; height: 100vh; overflow-y: auto;
+  padding: 28px 18px; border-right: 1px solid var(--line); background: var(--soft);
+}
+.toc-title { font-weight: bold; font-size: 15px; margin-bottom: 14px; color: var(--ink); letter-spacing: .02em; }
+.toc a { display: block; padding: 5px 8px; margin: 1px 0; border-radius: 6px; color: var(--ink-2); text-decoration: none; font-size: 15px; }
+.toc a:hover { background: var(--accent-soft); color: var(--accent); }
+main { margin-left: 230px; max-width: 1080px; padding: 36px 48px 80px; }
+@media (max-width: 900px) { .toc { display: none; } main { margin-left: 0; padding: 20px 16px 60px; } }
+header .kicker { margin: 0; color: var(--muted); font-size: 14px; letter-spacing: .08em; text-transform: uppercase; }
+h1 { font-size: 34px; line-height: 1.2; margin: 6px 0 18px; font-weight: normal; }
+h2 { font-size: 26px; font-weight: normal; margin: 0 0 14px; display: flex; align-items: center; gap: 12px; }
+h3 { font-size: 20px; font-weight: normal; margin: 30px 0 8px; color: var(--ink); }
+h4 { font-size: 15px; margin: 22px 0 6px; color: var(--muted); letter-spacing: .05em; text-transform: uppercase; font-weight: normal; }
+section { border-top: 1px solid var(--line); padding-top: 34px; margin-top: 44px; scroll-margin-top: 16px; }
+.num {
+  display: inline-flex; align-items: center; justify-content: center; width: 34px; height: 34px; border-radius: 50%;
+  background: var(--accent); color: #fff; font-size: 18px; flex: none;
+}
+p { margin: 10px 0; color: var(--ink-2); }
+p.lede { font-size: 19px; color: var(--ink); }
+p.caveat { font-size: 15px; color: var(--muted); border-left: 3px solid var(--line); padding-left: 12px; }
+p.learned { background: var(--learned); border-left: 4px solid var(--learned-line); padding: 12px 16px; border-radius: 4px; color: var(--ink); margin-top: 26px; }
+p.pending { background: var(--pending); border-left: 4px solid var(--pending-line); padding: 10px 16px; border-radius: 4px; font-size: 15px; }
+a { color: var(--accent); }
+figure { margin: 18px 0; }
+figure img { width: 100%; border: 1px solid var(--line); border-radius: 6px; display: block; }
+figure.narrow { max-width: 620px; }
+figcaption { font-size: 14px; color: var(--muted); margin-top: 6px; }
+.diagram { border: 1px solid var(--line); border-radius: 8px; padding: 12px; margin: 16px 0; }
+table { border-collapse: collapse; width: 100%; font-size: 14.5px; margin: 8px 0 14px; }
+th { text-align: left; font-weight: normal; color: var(--muted); border-bottom: 1.5px solid var(--line); padding: 6px 10px; }
+td { border-bottom: 1px solid var(--line); padding: 6px 10px; vertical-align: top; }
+table.compact:not(.grouped) td:nth-child(n+3), table.compact:not(.grouped) th:nth-child(n+3), table.compact td.n, table.compact th.n { text-align: right; font-variant-numeric: tabular-nums; }
+table.evidence td:first-child { font-weight: bold; }
+table.evidence td a { text-decoration: none; }
+.pill { display: inline-block; padding: 1px 9px; border-radius: 999px; font-size: 13px; white-space: nowrap; border: 1px solid; }
+.pill.strong { color: #1e6b33; border-color: #6fbf7f; background: #eaf6ec; }
+.pill.suggestive { color: #2a5db0; border-color: #8db4f5; background: #eef3fc; }
+.pill.unresolved { color: #8a5a00; border-color: #e0b75a; background: #fbf3e0; }
+.pill.null { color: #5d5f68; border-color: #b9bbc3; background: #f1f2f4; }
+.pill.pending { color: #7a7c85; border-color: #d0d2d8; background: #fafafb; font-style: italic; }
+.flag { font-size: 12px; color: #8a5a00; border: 1px solid #e0b75a; border-radius: 4px; padding: 0 4px; margin-left: 4px; }
+details.replay { margin: 10px 0 18px; border: 1px solid var(--line); border-radius: 8px; padding: 8px 14px; background: var(--soft); }
+details.replay summary { cursor: pointer; color: var(--accent); font-size: 15px; }
+details.replay[open] { background: var(--surface); }
+.player .controls button, .player .controls select { font-family: inherit; }
+/* layout polish */
+figure.grid { max-width: 860px; margin-left: auto; margin-right: auto; }
+figure.grid figcaption { text-align: center; }
+.tablewrap { overflow-x: auto; }
+table.compact tr.first td { border-top: 1.5px solid var(--line); }
+table.compact td.run { font-weight: bold; color: var(--ink); background: var(--soft); border-right: 1px solid var(--line); }
+table.compact td.full { color: #2f8a46; }
+table.compact td.part { color: #b07a10; }
+table.compact td.zero { color: #c0392b; font-weight: bold; }
+table.compact tr:hover td:not(.run) { background: var(--accent-soft); }
+.fam { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 7px; vertical-align: 1px; }
+.fam.ar { background: #2a78d6; } .fam.dd { background: #eb6834; } .fam.flow { background: #1baf7a; }
+section > h3 { padding-bottom: 4px; border-bottom: 1px dashed var(--line); }
+.toc a.active { background: var(--accent-soft); color: var(--accent); font-weight: bold; }
+.ts { margin: 14px 0; }
+.ts h4 { margin-top: 18px; }
+.ts.see { border-left: 3px solid var(--accent); padding-left: 16px; }
+.ts ul { margin: 6px 0 10px; padding-left: 22px; color: var(--ink-2); }
+.ts li { margin: 3px 0; }
+p.help { font-size: 14px; color: var(--muted); }
+div.replay { border: 1px solid var(--line); border-radius: 8px; padding: 10px; background: var(--soft); margin: 10px 0 20px; }
+table.full { font-size: 13px; }
+table.full td:nth-child(n+4), table.full th:nth-child(n+4) { text-align: right; font-variant-numeric: tabular-nums; }
+div.replay.narrow { max-width: 700px; }
+table.heatmap { width: auto; border-collapse: separate; border-spacing: 3px; margin: 8px 0 18px; }
+table.heatmap th { font-size: 13px; text-align: center; border: none; padding: 4px 8px; }
+table.heatmap th.corner { color: var(--muted); font-style: italic; font-weight: normal; }
+table.heatmap tr th:first-child { text-align: right; }
+table.heatmap td.hm { width: 112px; text-align: center; border: none; border-radius: 6px; padding: 6px 4px; font-variant-numeric: tabular-nums; }
+table.heatmap td.hm b { display: block; font-size: 17px; color: var(--ink); }
+table.heatmap td.hm span { display: block; font-size: 11.5px; color: var(--muted); }
+table.heatmap td.run { background: var(--soft); }
+table.heatmap td.run b { color: var(--muted); }
+table.heatmap td.fail { background: rgba(192, 57, 43, .18); }
+figure.wide { max-width: 100%; }
+details.explainer { margin: 14px 0 22px; border: 1px solid var(--line); border-left: 4px solid #7a4fc0; border-radius: 8px; padding: 10px 18px; background: var(--soft); }
+details.explainer summary { cursor: pointer; font-size: 16px; color: var(--ink); }
+details.explainer[open] { background: var(--surface); }
+details.explainer p { font-size: 16px; }
+
+.ts.suite { border-left: 3px solid var(--learned-line); padding-left: 16px; color: var(--ink); }
+.ci { color: var(--muted); font-size: 0.85em; white-space: nowrap; }
+p.note { color: var(--muted); font-size: 14px; margin-top: 4px; }
+table.defs td:first-child { white-space: nowrap; font-weight: bold; }
+#answers h3 { margin-top: 28px; }
+
+details.gloss { border-bottom: 1px solid var(--line); padding: 4px 0; }
+details.gloss summary { cursor: pointer; }
+details.gloss dl { margin: 6px 0 10px 18px; font-size: 15px; }
+details.gloss dt { font-weight: bold; color: var(--ink-2); margin-top: 4px; }
+details.gloss dd { margin-left: 14px; }
+details.whatis { font-size: 14px; color: var(--muted); margin: 2px 0 12px; }
+details.whatis summary { cursor: pointer; }
+details.mmgroup { margin: 8px 0; }
+details.mmgroup summary { cursor: pointer; font-weight: bold; }
+table.mm td, table.mm th { font-size: 12px; white-space: nowrap; }
+a.mlink { color: inherit; text-decoration: underline dotted; }
+details.startblock{border:1px solid var(--line);border-radius:8px;padding:6px 12px;margin:12px 0;background:var(--soft)}
+details.startblock>summary{cursor:pointer;font-weight:600;padding:4px 0}
+details.startblock>summary .muted{font-weight:normal;color:var(--muted)}
+h4.starthead{margin-top:22px}
+tr.seedmean td{border-top:1px dashed var(--line)}
+.replay h5{margin:6px 0 2px;font-size:13px}
+
+.evidence .pill { white-space: normal; border-radius: 8px; }
+details.open-questions { margin: 18px 0; padding: 8px 14px; border: 1px solid #d0d2d8; border-radius: 8px; }
+details.open-questions summary { cursor: pointer; }
+p.learned:has(+ ul.learned-list) { border-radius: 4px 4px 0 0; margin-bottom: 0; }
+p.learned + ul.learned-list { background: var(--learned); border-left: 4px solid var(--learned-line); margin-top: 0; padding: 2px 16px 12px 36px; border-radius: 0 0 4px 4px; color: var(--ink); }
+ul.learned-list li, ul.short-answer li { margin: .3em 0; }
+div.primer { background: var(--accent-soft); border-left: 4px solid var(--accent); padding: 10px 18px 6px; border-radius: 4px; margin: 18px 0 26px; }
+div.primer h3 { margin-top: 4px; }
+
+.startpick{display:flex;flex-wrap:wrap;gap:14px;align-items:center;margin:6px 0 10px;font-size:14px}
+.startpick select{font:inherit;font-size:13px;padding:4px 8px;border:1px solid #c9ccd2;border-radius:6px;background:#fff;color:#121217;max-width:420px}
+.startpick .pickstatus{color:#6b6d76}
+.sv-seeds{font-size:13px;color:var(--muted)} .sv-seeds i{display:inline-block;width:18px;height:3px;vertical-align:3px;margin:0 5px 0 10px;border-radius:2px}
+table.sv{border-collapse:collapse;font-size:13px;width:100%} table.sv td,table.sv th{border-top:1px solid var(--line);padding:4px 6px;vertical-align:middle}
+table.sv th{text-align:left;color:var(--muted);font-weight:normal;cursor:pointer;white-space:nowrap} table.sv td.n{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+table.sv img{width:690px;max-width:none;border:none;display:block} table.sv{font-size:12px} table.sv td{padding:3px 4px}
+.sv-wrap{overflow-x:auto} .sv-links a{margin-right:14px}
+main.sv-page{margin-left:auto;margin-right:auto;max-width:1400px}
+</style><style>
+.player{margin:8px 0 18px}
+.player .controls{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-bottom:10px}
+.player .controls button,.player .controls select{font:inherit;font-size:13px;padding:5px 10px;border:1px solid #c9ccd2;border-radius:6px;background:#fff;color:#121217;cursor:pointer}
+.player .controls button:hover{background:#f1f2f4}
+.player .controls label{font-size:13px;color:#3a3b42;display:flex;gap:6px;align-items:center}
+.player .sep{width:1px;height:22px;background:#d5d7dc;margin:0 4px}
+.player .clock{font-size:13px;color:#555761;margin-left:auto;font-variant-numeric:tabular-nums}
+.player .grid{display:grid;gap:8px;align-items:center}
+.player .colhead{text-align:center;font-weight:bold;font-size:15px}
+.player .rowhead{text-align:right;font-weight:bold;font-size:12.5px;padding-right:4px;white-space:pre-line}
+.player .cell{border:1px solid #e1e3e7;border-radius:6px;padding:4px;background:#fff}
+.player .cell canvas{width:100%;aspect-ratio:1;display:block}
+.player .bar{display:flex;align-items:center;justify-content:space-between;font-size:11px;color:#555761;margin-top:3px;gap:4px}
+.player .bar button{font-size:11px;padding:1px 7px;border:1px solid #d5d7dc;border-radius:4px;background:#fff;cursor:pointer;min-width:26px}
+.player .bar .cellplay{font-weight:bold}
+.player .info{flex:1;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.player .legend{font-size:12px;color:#555761}
+.player .sw{display:inline-block;width:11px;height:11px;border-radius:50%;margin:0 4px 0 12px;vertical-align:-1px}
+.player .sw.pusher{background:#2a2b33}.player .sw.target{background:#d6336c;border-radius:2px}
+.player .sw.block{background:#c9ccd2;border-radius:2px}.player .sw.goal{background:#e9f1ed;border:1px solid #81a895;border-radius:2px}
+.player.active{outline:2px solid #dbe8f8;outline-offset:6px;border-radius:6px}
+</style>
+<script>
+window.PushTPlayerSV = (() => {
+  const V = [[-60,0],[60,0],[60,30],[15,30],[15,120],[-15,120],[-15,30],[-60,30]];
+  const RADIUS = 15, TRAIL = 12, FPS = 10, HOLD = 8;
+  const players = []; let active = null;
+  function setActive(p) { players.forEach(q => q.root.classList.toggle('active', q === p)); active = p; }
+  document.addEventListener('keydown', e => {
+    if (!active || ['INPUT', 'SELECT', 'TEXTAREA'].includes(e.target.tagName)) return;
+    const k = e.key;
+    if (k === ' ') { e.preventDefault(); active.togglePlay(); }
+    else if (k === 'ArrowLeft') active.step(-1);
+    else if (k === 'ArrowRight') active.step(1);
+    else if (k === 'n' || k === 'N') active.rollout(1);
+    else if (k === 'p' || k === 'P') active.rollout(-1);
+    else if (k === 'r' || k === 'R') active.replay();
+  });
+  function tPoly(ctx, s, x, y, a) {
+    const c = Math.cos(a), sn = Math.sin(a);
+    ctx.beginPath();
+    V.forEach(([vx, vy], i) => { const px = (vx * c - vy * sn + x) * s, py = (vx * sn + vy * c + y) * s; i ? ctx.lineTo(px, py) : ctx.moveTo(px, py); });
+    ctx.closePath();
+  }
+  function el(tag, cls, text) { const e = document.createElement(tag); if (cls) e.className = cls; if (text !== undefined) e.textContent = text; return e; }
+  return function create(rootId, DATA) {
+    const root = document.getElementById(rootId); root.classList.add('player');
+    const controls = el('div', 'controls');
+    const B = (label, title) => { const b = el('button', null, label); b.title = title; controls.appendChild(b); return b; };
+    const replayB = B('⟲ Replay all', 'Replay every panel from step 0 (R)'), playB = B('▶ Play all', 'Play / pause every panel (space)');
+    const backB = B('◀ Step', 'Step every panel back (←)'), fwdB = B('Step ▶', 'Step every panel forward (→)');
+    const lab = el('label', null, 'Speed '); const sel = el('select');
+    [['0.5', '0.5×'], ['1', '1×'], ['2', '2×'], ['4', '4×']].forEach(([v, t]) => { const o = el('option', null, t); o.value = v; if (v === '1') o.selected = true; sel.appendChild(o); });
+    lab.appendChild(sel); controls.appendChild(lab); controls.appendChild(el('span', 'sep'));
+    const prevB = B('◀ Prev rollout', 'Previous rollout in every panel (P)'), nextB = B('Next rollout ▶', 'Next rollout in every panel (N)');
+    const clock = el('span', 'clock', 'step 0'); controls.appendChild(clock);
+    const grid = el('div', 'grid'); grid.style.gridTemplateColumns = `120px repeat(${DATA.columns.length}, minmax(0, 1fr))`;
+    grid.appendChild(el('div'));
+    DATA.columns.forEach(c => grid.appendChild(el('div', 'colhead', c)));
+    const cells = [];
+    DATA.rows.forEach(row => {
+      grid.appendChild(el('div', 'rowhead', row.label));
+      row.cells.forEach(cell => {
+        const box = el('div', 'cell'), canvas = el('canvas'); canvas.width = 360; canvas.height = 360;
+        const bar = el('div', 'bar'), info = el('span', 'info');
+        const pb = el('button', null, '◀'), play = el('button', 'cellplay', '❚❚'), again = el('button', null, '⟲'), nb = el('button', null, '▶');
+        pb.title = 'Previous rollout in this panel'; nb.title = 'Next rollout in this panel';
+        play.title = 'Play / pause this panel (or click the panel)'; again.title = 'Replay this panel';
+        bar.append(pb, play, again, info, nb); box.append(canvas, bar); grid.appendChild(box);
+        const c = {cell, canvas, ctx: canvas.getContext('2d'), info, play, idx: 0, t: 0, playing: false};
+        pb.onclick = () => { shift(c, -1); restart(c); }; nb.onclick = () => { shift(c, 1); restart(c); };
+        play.onclick = () => toggleCell(c); again.onclick = () => restart(c);
+        canvas.onclick = () => toggleCell(c); canvas.style.cursor = 'pointer';
+        cells.push(c);
+      });
+    });
+    const legend = el('p', 'legend');
+    legend.innerHTML = '<span class="sw pusher"></span>pusher <span class="sw target"></span>commanded target <span class="sw block"></span>block <span class="sw goal"></span>goal · 10 steps = 1 s at 1× · keys work on the last player you clicked';
+    root.append(controls, grid, legend);
+    let speed = 1, last = null;
+    const end = c => (c.cell.rollouts.length ? c.cell.rollouts[c.idx].len : 0) + HOLD;
+    const anyPlaying = () => cells.some(c => c.playing);
+    function shift(c, d) { const n = c.cell.rollouts.length; if (n) c.idx = (c.idx + d + n) % n; }
+    function restart(c) { c.t = 0; c.playing = c.cell.rollouts.length > 0; }
+    function toggleCell(c) { if (!c.cell.rollouts.length) return; if (!c.playing && c.t >= end(c)) c.t = 0; c.playing = !c.playing; }
+    function drawCell(c) {
+      const {ctx, canvas, cell} = c, s = canvas.width / 512;
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      if (!cell.rollouts.length) { ctx.fillStyle = '#64656e'; ctx.font = '16px Helvetica'; ctx.textAlign = 'center';
+        ctx.fillText(cell.empty || 'no successful rollout', canvas.width / 2, canvas.height / 2); c.info.textContent = cell.note; return; }
+      const r = cell.rollouts[c.idx], k = Math.min(Math.floor(c.t), r.len);
+      tPoly(ctx, s, ...r.goal); ctx.fillStyle = '#e9f1ed'; ctx.fill(); ctx.strokeStyle = '#81a895'; ctx.lineWidth = 1.5; ctx.stroke();
+      tPoly(ctx, s, r.bx[k], r.by[k], r.ba[k]); ctx.fillStyle = '#c9ccd2'; ctx.fill(); ctx.strokeStyle = '#8b8f97'; ctx.lineWidth = 1.2; ctx.stroke();
+      for (let i = Math.max(1, k - TRAIL + 1); i <= k; i++) {
+        ctx.strokeStyle = `rgba(214,51,108,${0.1 + 0.6 * (i - (k - TRAIL)) / TRAIL})`; ctx.lineWidth = 2.5;
+        ctx.beginPath(); ctx.moveTo(r.px[i - 1] * s, r.py[i - 1] * s); ctx.lineTo(r.px[i] * s, r.py[i] * s); ctx.stroke();
+      }
+      if (k < r.len) {
+        const tx = r.tx[k] * s, ty = r.ty[k] * s;
+        ctx.strokeStyle = 'rgba(214,51,108,0.8)'; ctx.lineWidth = 1.4;
+        ctx.beginPath(); ctx.moveTo(r.px[k] * s, r.py[k] * s); ctx.lineTo(tx, ty); ctx.stroke();
+        ctx.lineWidth = 2.4; ctx.beginPath(); ctx.moveTo(tx - 6, ty - 6); ctx.lineTo(tx + 6, ty + 6); ctx.moveTo(tx + 6, ty - 6); ctx.lineTo(tx - 6, ty + 6); ctx.stroke();
+      }
+      ctx.beginPath(); ctx.arc(r.px[k] * s, r.py[k] * s, RADIUS * s, 0, 2 * Math.PI);
+      ctx.fillStyle = '#2a2b33'; ctx.fill(); ctx.strokeStyle = '#fff'; ctx.lineWidth = 1.5; ctx.stroke();
+      ctx.fillStyle = '#555761'; ctx.font = '13px Helvetica'; ctx.textAlign = 'left';
+      ctx.fillText(k < r.len ? `step ${k}` : (r.success ? `done at step ${r.len}` : `failed (${r.len} steps)`), 8, canvas.height - 8);
+      c.info.textContent = `${r.success ? 'rollout' : 'failed rollout'} ${c.idx + 1}/${cell.rollouts.length} · ${r.len} steps · ${cell.note}`;
+    }
+    function draw() {
+      cells.forEach(c => { drawCell(c); c.play.textContent = c.playing ? '❚❚' : '▶︎'; });
+      const n = cells.filter(c => c.playing).length;
+      clock.textContent = n ? `${n} of ${cells.length} panels playing` : 'paused';
+      playB.textContent = anyPlaying() ? '❚❚ Pause all' : '▶ Play all';
+    }
+    const api = {
+      root,
+      togglePlay() {
+        if (anyPlaying()) cells.forEach(c => { c.playing = false; });
+        else cells.forEach(c => { if (c.t >= end(c)) c.t = 0; c.playing = c.cell.rollouts.length > 0; });
+      },
+      replay() { cells.forEach(restart); },
+      step(d) { cells.forEach(c => { c.playing = false; c.t = Math.max(0, Math.min(end(c), Math.floor(c.t) + d)); }); draw(); },
+      rollout(d) { cells.forEach(c => shift(c, d)); api.replay(); },
+      load(D) { const flat = [].concat(...D.rows.map(r => r.cells)); cells.forEach((c, i) => { c.cell = flat[i]; c.idx = 0; c.t = 0; c.playing = flat[i].rollouts.length > 0; }); },
+    };
+    playB.onclick = api.togglePlay; replayB.onclick = api.replay;
+    backB.onclick = () => api.step(-1); fwdB.onclick = () => api.step(1);
+    nextB.onclick = () => api.rollout(1); prevB.onclick = () => api.rollout(-1);
+    sel.onchange = e => { speed = parseFloat(e.target.value); };
+    root.addEventListener('pointerdown', () => setActive(api));
+    players.push(api); if (!active) setActive(api);
+    // Start playing when the player scrolls into view, pause when it leaves.
+    let started = false;
+    new IntersectionObserver(es => es.forEach(e => {
+      if (e.isIntersecting && !started) { started = true; api.replay(); }
+      else if (!e.isIntersecting) cells.forEach(c => { c.playing = false; });
+    }), {threshold: 0.25}).observe(root);
+    function tick(now) {
+      if (last !== null) {
+        const dt = (now - last) / 1000 * FPS * speed;
+        cells.forEach(c => { if (c.playing) { c.t += dt; if (c.t >= end(c)) { c.t = end(c); c.playing = false; } } });
+      }
+      last = now; draw(); requestAnimationFrame(tick);
+    }
+    requestAnimationFrame(tick);
+    return api;
+  };
+})();
+</script>
+<script>// Start / seed picker around PushTPlayer (analysis/player_lib.html, patched with a load() method by startviz/pages.py).
+// SPEC.map (optional): map[r][c] = [data row, data column] when the view shows a subset or another layout of D.
+// SPEC = {columns, rows: [labels], starts: [{seed, label}], seeds: [1,2,3], data: {startSeed: D} | null, src: 'dir/'}
+// D[row][col][seed] = {note, rollouts}; per-start files (src + startSeed + '.js') call StartVizData(key, startSeed, D).
+window.StartVizStore = window.StartVizStore || {};
+window.StartVizData = (key, start, D) => {
+  const s = (window.StartVizStore[key] = window.StartVizStore[key] || {}); s[start] = D;
+  (window.StartVizWaiting[key + ':' + start] || []).forEach(f => f()); delete window.StartVizWaiting[key + ':' + start];
+};
+window.StartVizWaiting = window.StartVizWaiting || {};
+window.PushTStartPlayer = function (rootId, key, SPEC) {
+  const root = document.getElementById(rootId);
+  const bar = document.createElement('div'); bar.className = 'startpick';
+  const mk = (label, opts, value) => {
+    const l = document.createElement('label'); l.textContent = label + ' ';
+    const s = document.createElement('select');
+    opts.forEach(([v, t]) => { const o = document.createElement('option'); o.value = v; o.textContent = t; s.appendChild(o); });
+    s.value = value; l.appendChild(s); bar.appendChild(l); return s;
+  };
+  const hash = new URLSearchParams(location.hash.slice(1));
+  const s0 = SPEC.starts.some(s => String(s.seed) === hash.get('start')) ? hash.get('start') : String(SPEC.starts[0].seed);
+  const startSel = mk('Start', SPEC.starts.map(s => [String(s.seed), s.label]), s0);
+  const seedSel = mk('Seed', SPEC.seeds.map(s => [String(s), 'seed ' + s]).concat([['all', 'all seeds']]), hash.get('seed') || String(SPEC.seeds[0]));
+  const status = document.createElement('span'); status.className = 'pickstatus'; bar.appendChild(status);
+  const inner = document.createElement('div'); inner.id = rootId + '-p';
+  root.append(bar, inner);
+  const empty = {note: 'not collected', rollouts: []};
+  function build(D, seed) {
+    return {columns: SPEC.columns, rows: SPEC.rows.map((label, r) => ({label, cells: SPEC.columns.map((_, c) => {
+      const [dr, dc] = SPEC.map ? SPEC.map[r][c] : [r, c];
+      const cell = (D[dr] || [])[dc] || {};
+      if (seed !== 'all') return cell[seed] || empty;
+      const parts = SPEC.seeds.map(s => cell[s]).filter(Boolean);
+      return {note: 'seeds ' + SPEC.seeds.join(', '), rollouts: [].concat(...parts.map(p => p.rollouts))};
+    })}))};
+  }
+  let player = null;
+  function show() {
+    const start = startSel.value, seed = seedSel.value;
+    const D = (window.StartVizStore[key] || {})[start];
+    if (!D) {
+      status.textContent = 'loading start ' + start + ' ...';
+      (window.StartVizWaiting[key + ':' + start] = window.StartVizWaiting[key + ':' + start] || []).push(show);
+      const sc = document.createElement('script'); sc.src = SPEC.src + start + '.js'; document.head.appendChild(sc);
+      return;
+    }
+    status.textContent = '';
+    const data = build(D, seed);
+    if (!player) player = PushTPlayerSV(inner.id, data); else player.load(data);
+  }
+  startSel.onchange = show; seedSel.onchange = show;
+  if (SPEC.data) Object.entries(SPEC.data).forEach(([s, D]) => StartVizData(key, s, D));
+  show();
+};
+// Report players register in window.SVLazy and start when they first scroll into view (also after their <details> opens).
+window.addEventListener('DOMContentLoaded', () => {
+  if (!window.SVLazy) return;
+  const io = new IntersectionObserver(es => es.forEach(e => {
+    if (!e.isIntersecting) return;
+    const f = window.SVLazy[e.target.id]; io.unobserve(e.target);
+    if (f) { delete window.SVLazy[e.target.id]; f(); }
+  }), {rootMargin: '300px'});
+  Object.keys(window.SVLazy).forEach(id => { const el = document.getElementById(id); if (el) io.observe(el); });
+});
+</script><body><main class='sv-page'><p class='sv-links'><a href='index.html'>Across starts and seeds (overview)</a><a href='browser.html'>Per-start browser</a></p><h1>6: MIP denoising tokenizers (MIP decoder and MIP encoder-decoder)</h1><h3>Trajectories across starts, seeds overlaid</h3><p class='sv-seeds'><i style='background:rgba(188,55,84,.9)'></i>seed 1<i style='background:rgba(188,55,84,.55)'></i>seed 2<i style='background:rgba(188,55,84,.3)'></i>seed 3 · color: episode time (dark violet start, yellow end) · gray cross: failed endpoint · gray T: block start · green T: goal · black dot: pusher start · numbers in each panel: mean steps of successful rollouts per seed, with the success count when not all succeeded</p><figure class='wide'><img src='img/grid_mip_ar.png' alt='AR trajectories'><figcaption>AR: rows are runs, columns are the representative starts (start 12345 first, then two starts per difficulty third). Up to 8 rollouts per seed.</figcaption></figure><figure class='wide'><img src='img/grid_mip_dd.png' alt='DD trajectories'><figcaption>DD: rows are runs, columns are the representative starts (start 12345 first, then two starts per difficulty third). Up to 8 rollouts per seed.</figcaption></figure><h3>Replays: any of the 64 starts, seeds 1 to 3</h3><p class='help'>Pick a start and a seed (or all seeds) above the player. Each panel replays rollouts 0 to 3 of that run from that start, successes and failures alike, so a panel shows the run's typical behavior rather than its best. The dark disc is the pusher with a fading trail, and the pink cross is the target point (the point the controller pulls the pusher toward). ▶︎/❚❚ plays a panel and ◀ ▶ switch rollouts. The bar under each panel gives the run's success count, mean steps and speed over all its rollouts from that start.</p><div class='replay' style='max-width:630px'><div id='sv-mip'></div><script>PushTStartPlayer('sv-mip', 'mip', {"columns":["AR","DD"],"rows":["Standard\nattention","MIP decoder Gaussian\n\u03bb=1","MIP decoder Gaussian\n\u03bb=0.5","MIP decoder OU\n\u03bb=1, \u03c3\u22640.25","MIP decoder OU\n\u03bb=0.5, \u03c3\u22640.25","MIP encoder-decoder Gaussian\n\u03bb=1","MIP encoder-decoder Gaussian\n\u03bb=0.5","MIP encoder-decoder OU\n\u03bb=1","MIP encoder-decoder OU\n\u03bb=0.5"],"starts":[{"seed":12345,"label":"12345 (reference) \u00b7 easy, rank 15 of 64 \u00b7 33 steps"},{"seed":772,"label":"772 \u00b7 easy, rank 1 of 64 \u00b7 27 steps"},{"seed":7322,"label":"7322 \u00b7 easy, rank 2 of 64 \u00b7 28 steps"},{"seed":14765,"label":"14765 \u00b7 easy, rank 3 of 64 \u00b7 29 steps"},{"seed":5879,"label":"5879 \u00b7 easy, rank 4 of 64 \u00b7 30 steps"},{"seed":7072,"label":"7072 \u00b7 easy, rank 5 of 64 \u00b7 30 steps"},{"seed":8566,"label":"8566 \u00b7 easy, rank 6 of 64 \u00b7 30 steps"},{"seed":2246,"label":"2246 \u00b7 easy, rank 7 of 64 \u00b7 31 steps"},{"seed":19764,"label":"19764 \u00b7 easy, rank 8 of 64 \u00b7 32 steps"},{"seed":5340,"label":"5340 \u00b7 easy, rank 9 of 64 \u00b7 32 steps"},{"seed":7184,"label":"7184 \u00b7 easy, rank 10 of 64 \u00b7 32 steps"},{"seed":10464,"label":"10464 \u00b7 easy, rank 11 of 64 \u00b7 32 steps"},{"seed":12714,"label":"12714 \u00b7 easy, rank 12 of 64 \u00b7 32 steps"},{"seed":14487,"label":"14487 \u00b7 easy, rank 13 of 64 \u00b7 32 steps"},{"seed":11571,"label":"11571 \u00b7 easy, rank 14 of 64 \u00b7 32 steps"},{"seed":10577,"label":"10577 \u00b7 easy, rank 16 of 64 \u00b7 33 steps"},{"seed":10107,"label":"10107 \u00b7 easy, rank 17 of 64 \u00b7 33 steps"},{"seed":5092,"label":"5092 \u00b7 easy, rank 18 of 64 \u00b7 34 steps"},{"seed":11199,"label":"11199 \u00b7 easy, rank 19 of 64 \u00b7 34 steps"},{"seed":2619,"label":"2619 \u00b7 easy, rank 20 of 64 \u00b7 34 steps"},{"seed":7257,"label":"7257 \u00b7 easy, rank 21 of 64 \u00b7 34 steps"},{"seed":15619,"label":"15619 \u00b7 easy, rank 22 of 64 \u00b7 34 steps"},{"seed":3859,"label":"3859 \u00b7 median, rank 23 of 64 \u00b7 34 steps"},{"seed":736,"label":"736 \u00b7 median, rank 24 of 64 \u00b7 35 steps"},{"seed":9431,"label":"9431 \u00b7 median, rank 25 of 64 \u00b7 35 steps"},{"seed":3733,"label":"3733 \u00b7 median, rank 26 of 64 \u00b7 35 steps"},{"seed":14183,"label":"14183 \u00b7 median, rank 27 of 64 \u00b7 35 steps"},{"seed":2113,"label":"2113 \u00b7 median, rank 28 of 64 \u00b7 35 steps"},{"seed":10620,"label":"10620 \u00b7 median, rank 29 of 64 \u00b7 36 steps"},{"seed":7968,"label":"7968 \u00b7 median, rank 30 of 64 \u00b7 36 steps"},{"seed":7578,"label":"7578 \u00b7 median, rank 31 of 64 \u00b7 36 steps"},{"seed":3942,"label":"3942 \u00b7 median, rank 32 of 64 \u00b7 36 steps"},{"seed":11461,"label":"11461 \u00b7 median, rank 33 of 64 \u00b7 36 steps"},{"seed":6433,"label":"6433 \u00b7 median, rank 34 of 64 \u00b7 36 steps"},{"seed":3613,"label":"3613 \u00b7 median, rank 35 of 64 \u00b7 36 steps"},{"seed":19939,"label":"19939 \u00b7 median, rank 36 of 64 \u00b7 36 steps"},{"seed":2410,"label":"2410 \u00b7 median, rank 37 of 64 \u00b7 36 steps"},{"seed":3564,"label":"3564 \u00b7 median, rank 38 of 64 \u00b7 37 steps"},{"seed":14064,"label":"14064 \u00b7 median, rank 39 of 64 \u00b7 37 steps"},{"seed":17670,"label":"17670 \u00b7 median, rank 40 of 64 \u00b7 37 steps"},{"seed":1280,"label":"1280 \u00b7 median, rank 41 of 64 \u00b7 38 steps"},{"seed":17188,"label":"17188 \u00b7 median, rank 42 of 64 \u00b7 38 steps"},{"seed":7881,"label":"7881 \u00b7 median, rank 43 of 64 \u00b7 38 steps"},{"seed":12843,"label":"12843 \u00b7 hard, rank 44 of 64 \u00b7 39 steps"},{"seed":9045,"label":"9045 \u00b7 hard, rank 45 of 64 \u00b7 39 steps"},{"seed":10920,"label":"10920 \u00b7 hard, rank 46 of 64 \u00b7 39 steps"},{"seed":9598,"label":"9598 \u00b7 hard, rank 47 of 64 \u00b7 39 steps"},{"seed":3949,"label":"3949 \u00b7 hard, rank 48 of 64 \u00b7 39 steps"},{"seed":1747,"label":"1747 \u00b7 hard, rank 49 of 64 \u00b7 40 steps"},{"seed":19733,"label":"19733 \u00b7 hard, rank 50 of 64 \u00b7 41 steps"},{"seed":12701,"label":"12701 \u00b7 hard, rank 51 of 64 \u00b7 41 steps"},{"seed":16789,"label":"16789 \u00b7 hard, rank 52 of 64 \u00b7 41 steps"},{"seed":8039,"label":"8039 \u00b7 hard, rank 53 of 64 \u00b7 41 steps"},{"seed":18235,"label":"18235 \u00b7 hard, rank 54 of 64 \u00b7 42 steps"},{"seed":4124,"label":"4124 \u00b7 hard, rank 55 of 64 \u00b7 42 steps"},{"seed":6469,"label":"6469 \u00b7 hard, rank 56 of 64 \u00b7 42 steps"},{"seed":408,"label":"408 \u00b7 hard, rank 57 of 64 \u00b7 43 steps"},{"seed":16420,"label":"16420 \u00b7 hard, rank 58 of 64 \u00b7 44 steps"},{"seed":10470,"label":"10470 \u00b7 hard, rank 59 of 64 \u00b7 46 steps"},{"seed":4752,"label":"4752 \u00b7 hard, rank 60 of 64 \u00b7 46 steps"},{"seed":5949,"label":"5949 \u00b7 hard, rank 61 of 64 \u00b7 46 steps"},{"seed":3981,"label":"3981 \u00b7 hard, rank 62 of 64 \u00b7 46 steps"},{"seed":1531,"label":"1531 \u00b7 hard, rank 63 of 64 \u00b7 47 steps"},{"seed":4595,"label":"4595 \u00b7 hard, rank 64 of 64 \u00b7 48 steps"}],"seeds":[1,2,3],"data":null,"src":"data/mip/"});</script></div></main></body></html>

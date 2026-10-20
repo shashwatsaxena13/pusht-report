@@ -1,0 +1,365 @@
+<!doctype html><html lang='en'><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'><title>PushT per-start browser</title><style>:root {
+  --ink: #1c1d22; --ink-2: #44464f; --muted: #6b6d76; --line: #e3e4e8; --soft: #f6f6f8;
+  --accent: #2a5db0; --accent-soft: #eaf0fa; --learned: #f3f8f3; --learned-line: #4f9a5f;
+  --pending: #fbf6ea; --pending-line: #c99a2e; --surface: #ffffff;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --ink: #ececef; --ink-2: #c4c6cc; --muted: #9a9ca4; --line: #34363d; --soft: #202228;
+    --accent: #8db4f5; --accent-soft: #1f2a3d; --learned: #1b261d; --learned-line: #6fbf7f;
+    --pending: #2a2518; --pending-line: #d9b45a; --surface: #16171b;
+  }
+  :root:not([data-theme="light"]) img, :root:not([data-theme="light"]) .diagram { background: #fff; border-radius: 6px; }
+}
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body {
+  margin: 0; background: var(--surface); color: var(--ink);
+  font-family: "Palatino Linotype", Palatino, "Book Antiqua", "TeX Gyre Pagella", Georgia, serif;
+  font-size: 17px; line-height: 1.6;
+}
+.toc {
+  position: fixed; top: 0; left: 0; width: 230px; height: 100vh; overflow-y: auto;
+  padding: 28px 18px; border-right: 1px solid var(--line); background: var(--soft);
+}
+.toc-title { font-weight: bold; font-size: 15px; margin-bottom: 14px; color: var(--ink); letter-spacing: .02em; }
+.toc a { display: block; padding: 5px 8px; margin: 1px 0; border-radius: 6px; color: var(--ink-2); text-decoration: none; font-size: 15px; }
+.toc a:hover { background: var(--accent-soft); color: var(--accent); }
+main { margin-left: 230px; max-width: 1080px; padding: 36px 48px 80px; }
+@media (max-width: 900px) { .toc { display: none; } main { margin-left: 0; padding: 20px 16px 60px; } }
+header .kicker { margin: 0; color: var(--muted); font-size: 14px; letter-spacing: .08em; text-transform: uppercase; }
+h1 { font-size: 34px; line-height: 1.2; margin: 6px 0 18px; font-weight: normal; }
+h2 { font-size: 26px; font-weight: normal; margin: 0 0 14px; display: flex; align-items: center; gap: 12px; }
+h3 { font-size: 20px; font-weight: normal; margin: 30px 0 8px; color: var(--ink); }
+h4 { font-size: 15px; margin: 22px 0 6px; color: var(--muted); letter-spacing: .05em; text-transform: uppercase; font-weight: normal; }
+section { border-top: 1px solid var(--line); padding-top: 34px; margin-top: 44px; scroll-margin-top: 16px; }
+.num {
+  display: inline-flex; align-items: center; justify-content: center; width: 34px; height: 34px; border-radius: 50%;
+  background: var(--accent); color: #fff; font-size: 18px; flex: none;
+}
+p { margin: 10px 0; color: var(--ink-2); }
+p.lede { font-size: 19px; color: var(--ink); }
+p.caveat { font-size: 15px; color: var(--muted); border-left: 3px solid var(--line); padding-left: 12px; }
+p.learned { background: var(--learned); border-left: 4px solid var(--learned-line); padding: 12px 16px; border-radius: 4px; color: var(--ink); margin-top: 26px; }
+p.pending { background: var(--pending); border-left: 4px solid var(--pending-line); padding: 10px 16px; border-radius: 4px; font-size: 15px; }
+a { color: var(--accent); }
+figure { margin: 18px 0; }
+figure img { width: 100%; border: 1px solid var(--line); border-radius: 6px; display: block; }
+figure.narrow { max-width: 620px; }
+figcaption { font-size: 14px; color: var(--muted); margin-top: 6px; }
+.diagram { border: 1px solid var(--line); border-radius: 8px; padding: 12px; margin: 16px 0; }
+table { border-collapse: collapse; width: 100%; font-size: 14.5px; margin: 8px 0 14px; }
+th { text-align: left; font-weight: normal; color: var(--muted); border-bottom: 1.5px solid var(--line); padding: 6px 10px; }
+td { border-bottom: 1px solid var(--line); padding: 6px 10px; vertical-align: top; }
+table.compact:not(.grouped) td:nth-child(n+3), table.compact:not(.grouped) th:nth-child(n+3), table.compact td.n, table.compact th.n { text-align: right; font-variant-numeric: tabular-nums; }
+table.evidence td:first-child { font-weight: bold; }
+table.evidence td a { text-decoration: none; }
+.pill { display: inline-block; padding: 1px 9px; border-radius: 999px; font-size: 13px; white-space: nowrap; border: 1px solid; }
+.pill.strong { color: #1e6b33; border-color: #6fbf7f; background: #eaf6ec; }
+.pill.suggestive { color: #2a5db0; border-color: #8db4f5; background: #eef3fc; }
+.pill.unresolved { color: #8a5a00; border-color: #e0b75a; background: #fbf3e0; }
+.pill.null { color: #5d5f68; border-color: #b9bbc3; background: #f1f2f4; }
+.pill.pending { color: #7a7c85; border-color: #d0d2d8; background: #fafafb; font-style: italic; }
+.flag { font-size: 12px; color: #8a5a00; border: 1px solid #e0b75a; border-radius: 4px; padding: 0 4px; margin-left: 4px; }
+details.replay { margin: 10px 0 18px; border: 1px solid var(--line); border-radius: 8px; padding: 8px 14px; background: var(--soft); }
+details.replay summary { cursor: pointer; color: var(--accent); font-size: 15px; }
+details.replay[open] { background: var(--surface); }
+.player .controls button, .player .controls select { font-family: inherit; }
+/* layout polish */
+figure.grid { max-width: 860px; margin-left: auto; margin-right: auto; }
+figure.grid figcaption { text-align: center; }
+.tablewrap { overflow-x: auto; }
+table.compact tr.first td { border-top: 1.5px solid var(--line); }
+table.compact td.run { font-weight: bold; color: var(--ink); background: var(--soft); border-right: 1px solid var(--line); }
+table.compact td.full { color: #2f8a46; }
+table.compact td.part { color: #b07a10; }
+table.compact td.zero { color: #c0392b; font-weight: bold; }
+table.compact tr:hover td:not(.run) { background: var(--accent-soft); }
+.fam { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 7px; vertical-align: 1px; }
+.fam.ar { background: #2a78d6; } .fam.dd { background: #eb6834; } .fam.flow { background: #1baf7a; }
+section > h3 { padding-bottom: 4px; border-bottom: 1px dashed var(--line); }
+.toc a.active { background: var(--accent-soft); color: var(--accent); font-weight: bold; }
+.ts { margin: 14px 0; }
+.ts h4 { margin-top: 18px; }
+.ts.see { border-left: 3px solid var(--accent); padding-left: 16px; }
+.ts ul { margin: 6px 0 10px; padding-left: 22px; color: var(--ink-2); }
+.ts li { margin: 3px 0; }
+p.help { font-size: 14px; color: var(--muted); }
+div.replay { border: 1px solid var(--line); border-radius: 8px; padding: 10px; background: var(--soft); margin: 10px 0 20px; }
+table.full { font-size: 13px; }
+table.full td:nth-child(n+4), table.full th:nth-child(n+4) { text-align: right; font-variant-numeric: tabular-nums; }
+div.replay.narrow { max-width: 700px; }
+table.heatmap { width: auto; border-collapse: separate; border-spacing: 3px; margin: 8px 0 18px; }
+table.heatmap th { font-size: 13px; text-align: center; border: none; padding: 4px 8px; }
+table.heatmap th.corner { color: var(--muted); font-style: italic; font-weight: normal; }
+table.heatmap tr th:first-child { text-align: right; }
+table.heatmap td.hm { width: 112px; text-align: center; border: none; border-radius: 6px; padding: 6px 4px; font-variant-numeric: tabular-nums; }
+table.heatmap td.hm b { display: block; font-size: 17px; color: var(--ink); }
+table.heatmap td.hm span { display: block; font-size: 11.5px; color: var(--muted); }
+table.heatmap td.run { background: var(--soft); }
+table.heatmap td.run b { color: var(--muted); }
+table.heatmap td.fail { background: rgba(192, 57, 43, .18); }
+figure.wide { max-width: 100%; }
+details.explainer { margin: 14px 0 22px; border: 1px solid var(--line); border-left: 4px solid #7a4fc0; border-radius: 8px; padding: 10px 18px; background: var(--soft); }
+details.explainer summary { cursor: pointer; font-size: 16px; color: var(--ink); }
+details.explainer[open] { background: var(--surface); }
+details.explainer p { font-size: 16px; }
+
+.ts.suite { border-left: 3px solid var(--learned-line); padding-left: 16px; color: var(--ink); }
+.ci { color: var(--muted); font-size: 0.85em; white-space: nowrap; }
+p.note { color: var(--muted); font-size: 14px; margin-top: 4px; }
+table.defs td:first-child { white-space: nowrap; font-weight: bold; }
+#answers h3 { margin-top: 28px; }
+
+details.gloss { border-bottom: 1px solid var(--line); padding: 4px 0; }
+details.gloss summary { cursor: pointer; }
+details.gloss dl { margin: 6px 0 10px 18px; font-size: 15px; }
+details.gloss dt { font-weight: bold; color: var(--ink-2); margin-top: 4px; }
+details.gloss dd { margin-left: 14px; }
+details.whatis { font-size: 14px; color: var(--muted); margin: 2px 0 12px; }
+details.whatis summary { cursor: pointer; }
+details.mmgroup { margin: 8px 0; }
+details.mmgroup summary { cursor: pointer; font-weight: bold; }
+table.mm td, table.mm th { font-size: 12px; white-space: nowrap; }
+a.mlink { color: inherit; text-decoration: underline dotted; }
+details.startblock{border:1px solid var(--line);border-radius:8px;padding:6px 12px;margin:12px 0;background:var(--soft)}
+details.startblock>summary{cursor:pointer;font-weight:600;padding:4px 0}
+details.startblock>summary .muted{font-weight:normal;color:var(--muted)}
+h4.starthead{margin-top:22px}
+tr.seedmean td{border-top:1px dashed var(--line)}
+.replay h5{margin:6px 0 2px;font-size:13px}
+
+.evidence .pill { white-space: normal; border-radius: 8px; }
+details.open-questions { margin: 18px 0; padding: 8px 14px; border: 1px solid #d0d2d8; border-radius: 8px; }
+details.open-questions summary { cursor: pointer; }
+p.learned:has(+ ul.learned-list) { border-radius: 4px 4px 0 0; margin-bottom: 0; }
+p.learned + ul.learned-list { background: var(--learned); border-left: 4px solid var(--learned-line); margin-top: 0; padding: 2px 16px 12px 36px; border-radius: 0 0 4px 4px; color: var(--ink); }
+ul.learned-list li, ul.short-answer li { margin: .3em 0; }
+div.primer { background: var(--accent-soft); border-left: 4px solid var(--accent); padding: 10px 18px 6px; border-radius: 4px; margin: 18px 0 26px; }
+div.primer h3 { margin-top: 4px; }
+
+.startpick{display:flex;flex-wrap:wrap;gap:14px;align-items:center;margin:6px 0 10px;font-size:14px}
+.startpick select{font:inherit;font-size:13px;padding:4px 8px;border:1px solid #c9ccd2;border-radius:6px;background:#fff;color:#121217;max-width:420px}
+.startpick .pickstatus{color:#6b6d76}
+.sv-seeds{font-size:13px;color:var(--muted)} .sv-seeds i{display:inline-block;width:18px;height:3px;vertical-align:3px;margin:0 5px 0 10px;border-radius:2px}
+table.sv{border-collapse:collapse;font-size:13px;width:100%} table.sv td,table.sv th{border-top:1px solid var(--line);padding:4px 6px;vertical-align:middle}
+table.sv th{text-align:left;color:var(--muted);font-weight:normal;cursor:pointer;white-space:nowrap} table.sv td.n{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+table.sv img{width:690px;max-width:none;border:none;display:block} table.sv{font-size:12px} table.sv td{padding:3px 4px}
+.sv-wrap{overflow-x:auto} .sv-links a{margin-right:14px}
+main.sv-page{margin-left:auto;margin-right:auto;max-width:1400px}
+</style><style>
+.player{margin:8px 0 18px}
+.player .controls{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-bottom:10px}
+.player .controls button,.player .controls select{font:inherit;font-size:13px;padding:5px 10px;border:1px solid #c9ccd2;border-radius:6px;background:#fff;color:#121217;cursor:pointer}
+.player .controls button:hover{background:#f1f2f4}
+.player .controls label{font-size:13px;color:#3a3b42;display:flex;gap:6px;align-items:center}
+.player .sep{width:1px;height:22px;background:#d5d7dc;margin:0 4px}
+.player .clock{font-size:13px;color:#555761;margin-left:auto;font-variant-numeric:tabular-nums}
+.player .grid{display:grid;gap:8px;align-items:center}
+.player .colhead{text-align:center;font-weight:bold;font-size:15px}
+.player .rowhead{text-align:right;font-weight:bold;font-size:12.5px;padding-right:4px;white-space:pre-line}
+.player .cell{border:1px solid #e1e3e7;border-radius:6px;padding:4px;background:#fff}
+.player .cell canvas{width:100%;aspect-ratio:1;display:block}
+.player .bar{display:flex;align-items:center;justify-content:space-between;font-size:11px;color:#555761;margin-top:3px;gap:4px}
+.player .bar button{font-size:11px;padding:1px 7px;border:1px solid #d5d7dc;border-radius:4px;background:#fff;cursor:pointer;min-width:26px}
+.player .bar .cellplay{font-weight:bold}
+.player .info{flex:1;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.player .legend{font-size:12px;color:#555761}
+.player .sw{display:inline-block;width:11px;height:11px;border-radius:50%;margin:0 4px 0 12px;vertical-align:-1px}
+.player .sw.pusher{background:#2a2b33}.player .sw.target{background:#d6336c;border-radius:2px}
+.player .sw.block{background:#c9ccd2;border-radius:2px}.player .sw.goal{background:#e9f1ed;border:1px solid #81a895;border-radius:2px}
+.player.active{outline:2px solid #dbe8f8;outline-offset:6px;border-radius:6px}
+</style>
+<script>
+window.PushTPlayerSV = (() => {
+  const V = [[-60,0],[60,0],[60,30],[15,30],[15,120],[-15,120],[-15,30],[-60,30]];
+  const RADIUS = 15, TRAIL = 12, FPS = 10, HOLD = 8;
+  const players = []; let active = null;
+  function setActive(p) { players.forEach(q => q.root.classList.toggle('active', q === p)); active = p; }
+  document.addEventListener('keydown', e => {
+    if (!active || ['INPUT', 'SELECT', 'TEXTAREA'].includes(e.target.tagName)) return;
+    const k = e.key;
+    if (k === ' ') { e.preventDefault(); active.togglePlay(); }
+    else if (k === 'ArrowLeft') active.step(-1);
+    else if (k === 'ArrowRight') active.step(1);
+    else if (k === 'n' || k === 'N') active.rollout(1);
+    else if (k === 'p' || k === 'P') active.rollout(-1);
+    else if (k === 'r' || k === 'R') active.replay();
+  });
+  function tPoly(ctx, s, x, y, a) {
+    const c = Math.cos(a), sn = Math.sin(a);
+    ctx.beginPath();
+    V.forEach(([vx, vy], i) => { const px = (vx * c - vy * sn + x) * s, py = (vx * sn + vy * c + y) * s; i ? ctx.lineTo(px, py) : ctx.moveTo(px, py); });
+    ctx.closePath();
+  }
+  function el(tag, cls, text) { const e = document.createElement(tag); if (cls) e.className = cls; if (text !== undefined) e.textContent = text; return e; }
+  return function create(rootId, DATA) {
+    const root = document.getElementById(rootId); root.classList.add('player');
+    const controls = el('div', 'controls');
+    const B = (label, title) => { const b = el('button', null, label); b.title = title; controls.appendChild(b); return b; };
+    const replayB = B('⟲ Replay all', 'Replay every panel from step 0 (R)'), playB = B('▶ Play all', 'Play / pause every panel (space)');
+    const backB = B('◀ Step', 'Step every panel back (←)'), fwdB = B('Step ▶', 'Step every panel forward (→)');
+    const lab = el('label', null, 'Speed '); const sel = el('select');
+    [['0.5', '0.5×'], ['1', '1×'], ['2', '2×'], ['4', '4×']].forEach(([v, t]) => { const o = el('option', null, t); o.value = v; if (v === '1') o.selected = true; sel.appendChild(o); });
+    lab.appendChild(sel); controls.appendChild(lab); controls.appendChild(el('span', 'sep'));
+    const prevB = B('◀ Prev rollout', 'Previous rollout in every panel (P)'), nextB = B('Next rollout ▶', 'Next rollout in every panel (N)');
+    const clock = el('span', 'clock', 'step 0'); controls.appendChild(clock);
+    const grid = el('div', 'grid'); grid.style.gridTemplateColumns = `120px repeat(${DATA.columns.length}, minmax(0, 1fr))`;
+    grid.appendChild(el('div'));
+    DATA.columns.forEach(c => grid.appendChild(el('div', 'colhead', c)));
+    const cells = [];
+    DATA.rows.forEach(row => {
+      grid.appendChild(el('div', 'rowhead', row.label));
+      row.cells.forEach(cell => {
+        const box = el('div', 'cell'), canvas = el('canvas'); canvas.width = 360; canvas.height = 360;
+        const bar = el('div', 'bar'), info = el('span', 'info');
+        const pb = el('button', null, '◀'), play = el('button', 'cellplay', '❚❚'), again = el('button', null, '⟲'), nb = el('button', null, '▶');
+        pb.title = 'Previous rollout in this panel'; nb.title = 'Next rollout in this panel';
+        play.title = 'Play / pause this panel (or click the panel)'; again.title = 'Replay this panel';
+        bar.append(pb, play, again, info, nb); box.append(canvas, bar); grid.appendChild(box);
+        const c = {cell, canvas, ctx: canvas.getContext('2d'), info, play, idx: 0, t: 0, playing: false};
+        pb.onclick = () => { shift(c, -1); restart(c); }; nb.onclick = () => { shift(c, 1); restart(c); };
+        play.onclick = () => toggleCell(c); again.onclick = () => restart(c);
+        canvas.onclick = () => toggleCell(c); canvas.style.cursor = 'pointer';
+        cells.push(c);
+      });
+    });
+    const legend = el('p', 'legend');
+    legend.innerHTML = '<span class="sw pusher"></span>pusher <span class="sw target"></span>commanded target <span class="sw block"></span>block <span class="sw goal"></span>goal · 10 steps = 1 s at 1× · keys work on the last player you clicked';
+    root.append(controls, grid, legend);
+    let speed = 1, last = null;
+    const end = c => (c.cell.rollouts.length ? c.cell.rollouts[c.idx].len : 0) + HOLD;
+    const anyPlaying = () => cells.some(c => c.playing);
+    function shift(c, d) { const n = c.cell.rollouts.length; if (n) c.idx = (c.idx + d + n) % n; }
+    function restart(c) { c.t = 0; c.playing = c.cell.rollouts.length > 0; }
+    function toggleCell(c) { if (!c.cell.rollouts.length) return; if (!c.playing && c.t >= end(c)) c.t = 0; c.playing = !c.playing; }
+    function drawCell(c) {
+      const {ctx, canvas, cell} = c, s = canvas.width / 512;
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      if (!cell.rollouts.length) { ctx.fillStyle = '#64656e'; ctx.font = '16px Helvetica'; ctx.textAlign = 'center';
+        ctx.fillText(cell.empty || 'no successful rollout', canvas.width / 2, canvas.height / 2); c.info.textContent = cell.note; return; }
+      const r = cell.rollouts[c.idx], k = Math.min(Math.floor(c.t), r.len);
+      tPoly(ctx, s, ...r.goal); ctx.fillStyle = '#e9f1ed'; ctx.fill(); ctx.strokeStyle = '#81a895'; ctx.lineWidth = 1.5; ctx.stroke();
+      tPoly(ctx, s, r.bx[k], r.by[k], r.ba[k]); ctx.fillStyle = '#c9ccd2'; ctx.fill(); ctx.strokeStyle = '#8b8f97'; ctx.lineWidth = 1.2; ctx.stroke();
+      for (let i = Math.max(1, k - TRAIL + 1); i <= k; i++) {
+        ctx.strokeStyle = `rgba(214,51,108,${0.1 + 0.6 * (i - (k - TRAIL)) / TRAIL})`; ctx.lineWidth = 2.5;
+        ctx.beginPath(); ctx.moveTo(r.px[i - 1] * s, r.py[i - 1] * s); ctx.lineTo(r.px[i] * s, r.py[i] * s); ctx.stroke();
+      }
+      if (k < r.len) {
+        const tx = r.tx[k] * s, ty = r.ty[k] * s;
+        ctx.strokeStyle = 'rgba(214,51,108,0.8)'; ctx.lineWidth = 1.4;
+        ctx.beginPath(); ctx.moveTo(r.px[k] * s, r.py[k] * s); ctx.lineTo(tx, ty); ctx.stroke();
+        ctx.lineWidth = 2.4; ctx.beginPath(); ctx.moveTo(tx - 6, ty - 6); ctx.lineTo(tx + 6, ty + 6); ctx.moveTo(tx + 6, ty - 6); ctx.lineTo(tx - 6, ty + 6); ctx.stroke();
+      }
+      ctx.beginPath(); ctx.arc(r.px[k] * s, r.py[k] * s, RADIUS * s, 0, 2 * Math.PI);
+      ctx.fillStyle = '#2a2b33'; ctx.fill(); ctx.strokeStyle = '#fff'; ctx.lineWidth = 1.5; ctx.stroke();
+      ctx.fillStyle = '#555761'; ctx.font = '13px Helvetica'; ctx.textAlign = 'left';
+      ctx.fillText(k < r.len ? `step ${k}` : (r.success ? `done at step ${r.len}` : `failed (${r.len} steps)`), 8, canvas.height - 8);
+      c.info.textContent = `${r.success ? 'rollout' : 'failed rollout'} ${c.idx + 1}/${cell.rollouts.length} · ${r.len} steps · ${cell.note}`;
+    }
+    function draw() {
+      cells.forEach(c => { drawCell(c); c.play.textContent = c.playing ? '❚❚' : '▶︎'; });
+      const n = cells.filter(c => c.playing).length;
+      clock.textContent = n ? `${n} of ${cells.length} panels playing` : 'paused';
+      playB.textContent = anyPlaying() ? '❚❚ Pause all' : '▶ Play all';
+    }
+    const api = {
+      root,
+      togglePlay() {
+        if (anyPlaying()) cells.forEach(c => { c.playing = false; });
+        else cells.forEach(c => { if (c.t >= end(c)) c.t = 0; c.playing = c.cell.rollouts.length > 0; });
+      },
+      replay() { cells.forEach(restart); },
+      step(d) { cells.forEach(c => { c.playing = false; c.t = Math.max(0, Math.min(end(c), Math.floor(c.t) + d)); }); draw(); },
+      rollout(d) { cells.forEach(c => shift(c, d)); api.replay(); },
+      load(D) { const flat = [].concat(...D.rows.map(r => r.cells)); cells.forEach((c, i) => { c.cell = flat[i]; c.idx = 0; c.t = 0; c.playing = flat[i].rollouts.length > 0; }); },
+    };
+    playB.onclick = api.togglePlay; replayB.onclick = api.replay;
+    backB.onclick = () => api.step(-1); fwdB.onclick = () => api.step(1);
+    nextB.onclick = () => api.rollout(1); prevB.onclick = () => api.rollout(-1);
+    sel.onchange = e => { speed = parseFloat(e.target.value); };
+    root.addEventListener('pointerdown', () => setActive(api));
+    players.push(api); if (!active) setActive(api);
+    // Start playing when the player scrolls into view, pause when it leaves.
+    let started = false;
+    new IntersectionObserver(es => es.forEach(e => {
+      if (e.isIntersecting && !started) { started = true; api.replay(); }
+      else if (!e.isIntersecting) cells.forEach(c => { c.playing = false; });
+    }), {threshold: 0.25}).observe(root);
+    function tick(now) {
+      if (last !== null) {
+        const dt = (now - last) / 1000 * FPS * speed;
+        cells.forEach(c => { if (c.playing) { c.t += dt; if (c.t >= end(c)) { c.t = end(c); c.playing = false; } } });
+      }
+      last = now; draw(); requestAnimationFrame(tick);
+    }
+    requestAnimationFrame(tick);
+    return api;
+  };
+})();
+</script>
+<script>// Start / seed picker around PushTPlayer (analysis/player_lib.html, patched with a load() method by startviz/pages.py).
+// SPEC.map (optional): map[r][c] = [data row, data column] when the view shows a subset or another layout of D.
+// SPEC = {columns, rows: [labels], starts: [{seed, label}], seeds: [1,2,3], data: {startSeed: D} | null, src: 'dir/'}
+// D[row][col][seed] = {note, rollouts}; per-start files (src + startSeed + '.js') call StartVizData(key, startSeed, D).
+window.StartVizStore = window.StartVizStore || {};
+window.StartVizData = (key, start, D) => {
+  const s = (window.StartVizStore[key] = window.StartVizStore[key] || {}); s[start] = D;
+  (window.StartVizWaiting[key + ':' + start] || []).forEach(f => f()); delete window.StartVizWaiting[key + ':' + start];
+};
+window.StartVizWaiting = window.StartVizWaiting || {};
+window.PushTStartPlayer = function (rootId, key, SPEC) {
+  const root = document.getElementById(rootId);
+  const bar = document.createElement('div'); bar.className = 'startpick';
+  const mk = (label, opts, value) => {
+    const l = document.createElement('label'); l.textContent = label + ' ';
+    const s = document.createElement('select');
+    opts.forEach(([v, t]) => { const o = document.createElement('option'); o.value = v; o.textContent = t; s.appendChild(o); });
+    s.value = value; l.appendChild(s); bar.appendChild(l); return s;
+  };
+  const hash = new URLSearchParams(location.hash.slice(1));
+  const s0 = SPEC.starts.some(s => String(s.seed) === hash.get('start')) ? hash.get('start') : String(SPEC.starts[0].seed);
+  const startSel = mk('Start', SPEC.starts.map(s => [String(s.seed), s.label]), s0);
+  const seedSel = mk('Seed', SPEC.seeds.map(s => [String(s), 'seed ' + s]).concat([['all', 'all seeds']]), hash.get('seed') || String(SPEC.seeds[0]));
+  const status = document.createElement('span'); status.className = 'pickstatus'; bar.appendChild(status);
+  const inner = document.createElement('div'); inner.id = rootId + '-p';
+  root.append(bar, inner);
+  const empty = {note: 'not collected', rollouts: []};
+  function build(D, seed) {
+    return {columns: SPEC.columns, rows: SPEC.rows.map((label, r) => ({label, cells: SPEC.columns.map((_, c) => {
+      const [dr, dc] = SPEC.map ? SPEC.map[r][c] : [r, c];
+      const cell = (D[dr] || [])[dc] || {};
+      if (seed !== 'all') return cell[seed] || empty;
+      const parts = SPEC.seeds.map(s => cell[s]).filter(Boolean);
+      return {note: 'seeds ' + SPEC.seeds.join(', '), rollouts: [].concat(...parts.map(p => p.rollouts))};
+    })}))};
+  }
+  let player = null;
+  function show() {
+    const start = startSel.value, seed = seedSel.value;
+    const D = (window.StartVizStore[key] || {})[start];
+    if (!D) {
+      status.textContent = 'loading start ' + start + ' ...';
+      (window.StartVizWaiting[key + ':' + start] = window.StartVizWaiting[key + ':' + start] || []).push(show);
+      const sc = document.createElement('script'); sc.src = SPEC.src + start + '.js'; document.head.appendChild(sc);
+      return;
+    }
+    status.textContent = '';
+    const data = build(D, seed);
+    if (!player) player = PushTPlayerSV(inner.id, data); else player.load(data);
+  }
+  startSel.onchange = show; seedSel.onchange = show;
+  if (SPEC.data) Object.entries(SPEC.data).forEach(([s, D]) => StartVizData(key, s, D));
+  show();
+};
+// Report players register in window.SVLazy and start when they first scroll into view (also after their <details> opens).
+window.addEventListener('DOMContentLoaded', () => {
+  if (!window.SVLazy) return;
+  const io = new IntersectionObserver(es => es.forEach(e => {
+    if (!e.isIntersecting) return;
+    const f = window.SVLazy[e.target.id]; io.unobserve(e.target);
+    if (f) { delete window.SVLazy[e.target.id]; f(); }
+  }), {rootMargin: '300px'});
+  Object.keys(window.SVLazy).forEach(id => { const el = document.getElementById(id); if (el) io.observe(el); });
+});
+</script><body><main class='sv-page'><p class='sv-links'><a href='index.html'>Across starts and seeds (overview)</a></p><h1>Per-start browser: standard PushT actions, attention</h1><p>One row per test start (64 fixed initial positions), sorted by difficulty, measured as the mean steps to success of the default RL policies (AR, DD and flow, seeds 1 to 3).</p><ul><li><b>Each panel overlays up to 8 rollouts per seed.</b> These are rollout indices 0 to 7, every outcome, colored by episode time (inferno colormap). Seed 1 is drawn most opaque and seed 3 faintest.</li><li><b>The right columns give three lines per family.</b> The mean steps over seeds (bold), the steps per seed (seed 1 / 2 / 3) and the speed per seed in px/step, all over successful RL rollouts.</li><li><b>The last column gives BC success counts.</b> These are the BC checkpoints RL starts from, over all seeds.</li><li><b>Click a column header to sort.</b> <i>replay</i> opens the default-setup player at that start.</li></ul><p class='sv-seeds'><i style='background:rgba(188,55,84,.9)'></i>seed 1<i style='background:rgba(188,55,84,.55)'></i>seed 2<i style='background:rgba(188,55,84,.3)'></i>seed 3 · color: episode time (dark violet start, yellow end) · gray cross: failed endpoint · gray T: block start · green T: goal · black dot: pusher start · numbers in each panel: mean steps of successful rollouts per seed, with the success count when not all succeeded</p><div class='sv-wrap'><table class='sv'><tr><th data-k='rank'>Start (sort)</th><th data-k='bg'>Block to goal</th><th>Seeds overlaid: RL (left three) and BC policy (right three)</th><th data-k='ar'>AR RL<br>steps<br>px/step</th><th data-k='dd'>DD RL<br>steps<br>px/step</th><th data-k='flow'>Flow RL<br>steps<br>px/step</th><th>BC<br>success</th></tr><tr id='s772' data-rank='0' data-bg='163'><td><b>772</b><br>easy<br>rank 1<br><a href='baseline.html#start=772'>replay</a></td><td class='n'>163 px<br>7°</td><td><img loading='lazy' src='img/browser/start_772.png' alt='start 772'></td><td class='n' data-v='22.041666666666668' title='per seed 1 / 2 / 3; success 48/48'><b>22</b><br>22 / 22 / 22<br>35.5 / 34.5 / 31.8</td><td class='n' data-v='20.041666666666668' title='per seed 1 / 2 / 3; success 48/48'><b>20</b><br>22 / 17 / 21<br>34.3 / 40.4 / 36.6</td><td class='n' data-v='40.083333333333336' title='per seed 1 / 2 / 3; success 48/48'><b>40</b><br>44 / 33 / 43<br>15.1 / 20.6 / 17.4</td><td class='n'>AR 16/48<br>DD 16/48<br>Flow 12/48</td></tr><tr id='s7322' data-rank='1' data-bg='121'><td><b>7322</b><br>easy<br>rank 2<br><a href='baseline.html#start=7322'>replay</a></td><td class='n'>121 px<br>15°</td><td><img loading='lazy' src='img/browser/start_7322.png' alt='start 7322'></td><td class='n' data-v='25.645833333333332' title='per seed 1 / 2 / 3; success 48/48'><b>26</b><br>34 / 21 / 22<br>27.7 / 23.0 / 22.4</td><td class='n' data-v='19.770833333333332' title='per seed 1 / 2 / 3; success 48/48'><b>20</b><br>21 / 19 / 19<br>21.9 / 27.0 / 25.1</td><td class='n' data-v='37.770833333333336' title='per seed 1 / 2 / 3; success 48/48'><b>38</b><br>45 / 28 / 41<br>12.0 / 15.3 / 11.8</td><td class='n'>AR 8/48<br>DD 14/48<br>Flow 25/48</td></tr><tr id='s14765' data-rank='2' data-bg='62'><td><b>14765</b><br>easy<br>rank 3<br><a href='baseline.html#start=14765'>replay</a></td><td class='n'>62 px<br>16°</td><td><img loading='lazy' src='img/browser/start_14765.png' alt='start 14765'></td><td class='n' data-v='20.604166666666668' title='per seed 1 / 2 / 3; success 48/48'><b>21</b><br>21 / 20 / 20<br>24.5 / 27.1 / 27.0</td><td class='n' data-v='22.333333333333332' title='per seed 1 / 2 / 3; success 48/48'><b>22</b><br>27 / 20 / 20<br>26.0 / 29.2 / 31.7</td><td class='n' data-v='45.229166666666664' title='per seed 1 / 2 / 3; success 48/48'><b>45</b><br>47 / 44 / 45<br>15.2 / 15.6 / 13.0</td><td class='n'>AR 19/48<br>DD 26/48<br>Flow 20/48</td></tr><tr id='s5879' data-rank='3' data-bg='82'><td><b>5879</b><br>easy<br>rank 4<br><a href='baseline.html#start=5879'>replay</a></td><td class='n'>82 px<br>93°</td><td><img loading='lazy' src='img/browser/start_5879.png' alt='start 5879'></td><td class='n' data-v='22.895833333333332' title='per seed 1 / 2 / 3; success 48/48'><b>23</b><br>24 / 25 / 20<br>36.2 / 31.8 / 33.3</td><td class='n' data-v='24.125' title='per seed 1 / 2 / 3; success 48/48'><b>24</b><br>26 / 21 / 25<br>30.2 / 33.6 / 32.0</td><td class='n' data-v='41.958333333333336' title='per seed 1 / 2 / 3; success 48/48'><b>42</b><br>47 / 41 / 37<br>14.2 / 17.5 / 18.6</td><td class='n'>AR 15/48<br>DD 18/48<br>Flow 20/48</td></tr><tr id='s7072' data-rank='4' data-bg='59'><td><b>7072</b><br>easy<br>rank 5<br><a href='baseline.html#start=7072'>replay</a></td><td class='n'>59 px<br>12°</td><td><img loading='lazy' src='img/browser/start_7072.png' alt='start 7072'></td><td class='n' data-v='22.145833333333332' title='per seed 1 / 2 / 3; success 48/48'><b>22</b><br>27 / 20 / 20<br>30.6 / 32.0 / 34.0</td><td class='n' data-v='22.916666666666668' title='per seed 1 / 2 / 3; success 48/48'><b>23</b><br>28 / 20 / 21<br>26.5 / 35.1 / 32.0</td><td class='n' data-v='44.125' title='per seed 1 / 2 / 3; success 48/48'><b>44</b><br>36 / 36 / 60<br>17.5 / 16.7 / 15.3</td><td class='n'>AR 14/48<br>DD 22/48<br>Flow 19/48</td></tr><tr id='s8566' data-rank='5' data-bg='89'><td><b>8566</b><br>easy<br>rank 6<br><a href='baseline.html#start=8566'>replay</a></td><td class='n'>89 px<br>90°</td><td><img loading='lazy' src='img/browser/start_8566.png' alt='start 8566'></td><td class='n' data-v='23.416666666666668' title='per seed 1 / 2 / 3; success 48/48'><b>23</b><br>21 / 25 / 24<br>35.2 / 35.8 / 32.9</td><td class='n' data-v='25.0625' title='per seed 1 / 2 / 3; success 48/48'><b>25</b><br>26 / 24 / 25<br>31.5 / 34.4 / 37.4</td><td class='n' data-v='42.479166666666664' title='per seed 1 / 2 / 3; success 48/48'><b>42</b><br>47 / 41 / 40<br>15.8 / 21.5 / 19.1</td><td class='n'>AR 18/48<br>DD 33/48<br>Flow 7/48</td></tr><tr id='s2246' data-rank='6' data-bg='135'><td><b>2246</b><br>easy<br>rank 7<br><a href='baseline.html#start=2246'>replay</a></td><td class='n'>135 px<br>33°</td><td><img loading='lazy' src='img/browser/start_2246.png' alt='start 2246'></td><td class='n' data-v='27.145833333333332' title='per seed 1 / 2 / 3; success 48/48'><b>27</b><br>30 / 22 / 29<br>35.1 / 34.8 / 34.2</td><td class='n' data-v='23.291666666666668' title='per seed 1 / 2 / 3; success 48/48'><b>23</b><br>23 / 23 / 24<br>34.3 / 35.1 / 36.8</td><td class='n' data-v='41.395833333333336' title='per seed 1 / 2 / 3; success 48/48'><b>41</b><br>43 / 42 / 40<br>21.8 / 23.5 / 22.0</td><td class='n'>AR 8/48<br>DD 24/48<br>Flow 20/48</td></tr><tr id='s19764' data-rank='7' data-bg='134'><td><b>19764</b><br>easy<br>rank 8<br><a href='baseline.html#start=19764'>replay</a></td><td class='n'>134 px<br>27°</td><td><img loading='lazy' src='img/browser/start_19764.png' alt='start 19764'></td><td class='n' data-v='26.1875' title='per seed 1 / 2 / 3; success 48/48'><b>26</b><br>28 / 24 / 27<br>30.6 / 33.9 / 32.9</td><td class='n' data-v='27.041666666666668' title='per seed 1 / 2 / 3; success 48/48'><b>27</b><br>28 / 29 / 24<br>31.1 / 29.5 / 32.2</td><td class='n' data-v='41.541666666666664' title='per seed 1 / 2 / 3; success 48/48'><b>42</b><br>44 / 33 / 47<br>15.5 / 21.0 / 16.5</td><td class='n'>AR 10/48<br>DD 13/48<br>Flow 22/48</td></tr><tr id='s5340' data-rank='8' data-bg='80'><td><b>5340</b><br>easy<br>rank 9<br><a href='baseline.html#start=5340'>replay</a></td><td class='n'>80 px<br>15°</td><td><img loading='lazy' src='img/browser/start_5340.png' alt='start 5340'></td><td class='n' data-v='23.270833333333332' title='per seed 1 / 2 / 3; success 48/48'><b>23</b><br>23 / 20 / 27<br>30.5 / 34.2 / 27.3</td><td class='n' data-v='24.604166666666668' title='per seed 1 / 2 / 3; success 48/48'><b>25</b><br>25 / 27 / 22<br>31.1 / 33.7 / 36.5</td><td class='n' data-v='47.8125' title='per seed 1 / 2 / 3; success 48/48'><b>48</b><br>46 / 48 / 49<br>15.9 / 16.4 / 15.5</td><td class='n'>AR 16/48<br>DD 22/48<br>Flow 17/48</td></tr><tr id='s7184' data-rank='9' data-bg='94'><td><b>7184</b><br>easy<br>rank 10<br><a href='baseline.html#start=7184'>replay</a></td><td class='n'>94 px<br>58°</td><td><img loading='lazy' src='img/browser/start_7184.png' alt='start 7184'></td><td class='n' data-v='26.291666666666668' title='per seed 1 / 2 / 3; success 48/48'><b>26</b><br>24 / 30 / 24<br>34.0 / 33.9 / 40.9</td><td class='n' data-v='24.791666666666668' title='per seed 1 / 2 / 3; success 48/48'><b>25</b><br>23 / 22 / 29<br>35.3 / 36.4 / 35.4</td><td class='n' data-v='44.75' title='per seed 1 / 2 / 3; success 48/48'><b>45</b><br>43 / 46 / 45<br>18.0 / 18.7 / 17.7</td><td class='n'>AR 15/48<br>DD 24/48<br>Flow 16/48</td></tr><tr id='s10464' data-rank='10' data-bg='125'><td><b>10464</b><br>easy<br>rank 11<br><a href='baseline.html#start=10464'>replay</a></td><td class='n'>125 px<br>130°</td><td><img loading='lazy' src='img/browser/start_10464.png' alt='start 10464'></td><td class='n' data-v='23.708333333333332' title='per seed 1 / 2 / 3; success 48/48'><b>24</b><br>23 / 24 / 24<br>41.5 / 38.4 / 41.7</td><td class='n' data-v='24.8125' title='per seed 1 / 2 / 3; success 48/48'><b>25</b><br>27 / 24 / 23<br>36.4 / 40.3 / 40.7</td><td class='n' data-v='47.479166666666664' title='per seed 1 / 2 / 3; success 48/48'><b>47</b><br>49 / 50 / 44<br>20.0 / 20.1 / 24.8</td><td class='n'>AR 5/48<br>DD 6/48<br>Flow 15/48</td></tr><tr id='s12714' data-rank='11' data-bg='75'><td><b>12714</b><br>easy<br>rank 12<br><a href='baseline.html#start=12714'>replay</a></td><td class='n'>75 px<br>13°</td><td><img loading='lazy' src='img/browser/start_12714.png' alt='start 12714'></td><td class='n' data-v='25.895833333333332' title='per seed 1 / 2 / 3; success 48/48'><b>26</b><br>24 / 25 / 29<br>25.2 / 24.3 / 26.9</td><td class='n' data-v='24.25' title='per seed 1 / 2 / 3; success 48/48'><b>24</b><br>24 / 25 / 24<br>26.8 / 25.4 / 25.7</td><td class='n' data-v='46.083333333333336' title='per seed 1 / 2 / 3; success 48/48'><b>46</b><br>39 / 56 / 43<br>11.8 / 12.5 / 12.3</td><td class='n'>AR 22/48<br>DD 29/48<br>Flow 29/48</td></tr><tr id='s14487' data-rank='12' data-bg='119'><td><b>14487</b><br>easy<br>rank 13<br><a href='baseline.html#start=14487'>replay</a></td><td class='n'>119 px<br>117°</td><td><img loading='lazy' src='img/browser/start_14487.png' alt='start 14487'></td><td class='n' data-v='25.6875' title='per seed 1 / 2 / 3; success 48/48'><b>26</b><br>28 / 25 / 24<br>28.0 / 33.1 / 33.4</td><td class='n' data-v='27.458333333333332' title='per seed 1 / 2 / 3; success 48/48'><b>27</b><br>30 / 25 / 27<br>31.3 / 36.1 / 36.7</td><td class='n' data-v='43.354166666666664' title='per seed 1 / 2 / 3; success 48/48'><b>43</b><br>49 / 42 / 38<br>18.5 / 20.6 / 20.7</td><td class='n'>AR 3/48<br>DD 18/48<br>Flow 28/48</td></tr><tr id='s11571' data-rank='13' data-bg='117'><td><b>11571</b><br>easy<br>rank 14<br><a href='baseline.html#start=11571'>replay</a></td><td class='n'>117 px<br>22°</td><td><img loading='lazy' src='img/browser/start_11571.png' alt='start 11571'></td><td class='n' data-v='26.0' title='per seed 1 / 2 / 3; success 48/48'><b>26</b><br>25 / 30 / 23<br>32.7 / 35.9 / 38.5</td><td class='n' data-v='22.708333333333332' title='per seed 1 / 2 / 3; success 48/48'><b>23</b><br>24 / 22 / 22<br>33.0 / 36.4 / 32.0</td><td class='n' data-v='48.145833333333336' title='per seed 1 / 2 / 3; success 48/48'><b>48</b><br>44 / 48 / 53<br>16.5 / 16.7 / 17.5</td><td class='n'>AR 7/48<br>DD 20/48<br>Flow 4/48</td></tr><tr id='s12345' data-rank='14' data-bg='176'><td><b>12345</b><br>(reference)<br>easy<br>rank 15<br><a href='baseline.html#start=12345'>replay</a></td><td class='n'>176 px<br>117°</td><td><img loading='lazy' src='img/browser/start_12345.png' alt='start 12345'></td><td class='n' data-v='26.3125' title='per seed 1 / 2 / 3; success 48/48'><b>26</b><br>25 / 29 / 24<br>34.8 / 34.4 / 35.5</td><td class='n' data-v='23.166666666666668' title='per seed 1 / 2 / 3; success 48/48'><b>23</b><br>25 / 20 / 24<br>34.0 / 40.7 / 37.2</td><td class='n' data-v='48.520833333333336' title='per seed 1 / 2 / 3; success 48/48'><b>49</b><br>49 / 52 / 45<br>19.1 / 18.6 / 23.1</td><td class='n'>AR 0/48<br>DD 1/48<br>Flow 6/48</td></tr><tr id='s10577' data-rank='15' data-bg='109'><td><b>10577</b><br>easy<br>rank 16<br><a href='baseline.html#start=10577'>replay</a></td><td class='n'>109 px<br>12°</td><td><img loading='lazy' src='img/browser/start_10577.png' alt='start 10577'></td><td class='n' data-v='22.4375' title='per seed 1 / 2 / 3; success 48/48'><b>22</b><br>21 / 24 / 22<br>32.4 / 31.9 / 32.3</td><td class='n' data-v='21.270833333333332' title='per seed 1 / 2 / 3; success 48/48'><b>21</b><br>20 / 24 / 19<br>34.9 / 34.2 / 34.4</td><td class='n' data-v='54.5625' title='per seed 1 / 2 / 3; success 48/48'><b>55</b><br>54 / 64 / 46<br>12.1 / 14.1 / 16.5</td><td class='n'>AR 15/48<br>DD 29/48<br>Flow 20/48</td></tr><tr id='s10107' data-rank='16' data-bg='124'><td><b>10107</b><br>easy<br>rank 17<br><a href='baseline.html#start=10107'>replay</a></td><td class='n'>124 px<br>29°</td><td><img loading='lazy' src='img/browser/start_10107.png' alt='start 10107'></td><td class='n' data-v='28.854166666666668' title='per seed 1 / 2 / 3; success 48/48'><b>29</b><br>25 / 35 / 26<br>33.0 / 40.7 / 35.8</td><td class='n' data-v='22.229166666666668' title='per seed 1 / 2 / 3; success 48/48'><b>22</b><br>24 / 22 / 21<br>35.2 / 34.9 / 34.3</td><td class='n' data-v='48.3125' title='per seed 1 / 2 / 3; success 48/48'><b>48</b><br>51 / 53 / 41<br>15.0 / 17.2 / 17.6</td><td class='n'>AR 10/48<br>DD 27/48<br>Flow 23/48</td></tr><tr id='s5092' data-rank='17' data-bg='9'><td><b>5092</b><br>easy<br>rank 18<br><a href='baseline.html#start=5092'>replay</a></td><td class='n'>9 px<br>55°</td><td><img loading='lazy' src='img/browser/start_5092.png' alt='start 5092'></td><td class='n' data-v='24.354166666666668' title='per seed 1 / 2 / 3; success 48/48'><b>24</b><br>27 / 21 / 24<br>28.7 / 25.2 / 27.1</td><td class='n' data-v='26.645833333333332' title='per seed 1 / 2 / 3; success 48/48'><b>27</b><br>33 / 25 / 22<br>32.0 / 29.7 / 30.4</td><td class='n' data-v='49.5' title='per seed 1 / 2 / 3; success 48/48'><b>50</b><br>50 / 54 / 44<br>12.3 / 12.5 / 14.7</td><td class='n'>AR 22/48<br>DD 32/48<br>Flow 20/48</td></tr><tr id='s11199' data-rank='18' data-bg='162'><td><b>11199</b><br>easy<br>rank 19<br><a href='baseline.html#start=11199'>replay</a></td><td class='n'>162 px<br>74°</td><td><img loading='lazy' src='img/browser/start_11199.png' alt='start 11199'></td><td class='n' data-v='24.333333333333332' title='per seed 1 / 2 / 3; success 48/48'><b>24</b><br>23 / 26 / 24<br>40.2 / 38.3 / 43.6</td><td class='n' data-v='24.916666666666668' title='per seed 1 / 2 / 3; success 48/48'><b>25</b><br>25 / 24 / 26<br>40.1 / 42.8 / 42.1</td><td class='n' data-v='52.479166666666664' title='per seed 1 / 2 / 3; success 48/48'><b>52</b><br>54 / 55 / 48<br>19.5 / 20.2 / 24.6</td><td class='n'>AR 10/48<br>DD 28/48<br>Flow 8/48</td></tr><tr id='s2619' data-rank='19' data-bg='66'><td><b>2619</b><br>easy<br>rank 20<br><a href='baseline.html#start=2619'>replay</a></td><td class='n'>66 px<br>142°</td><td><img loading='lazy' src='img/browser/start_2619.png' alt='start 2619'></td><td class='n' data-v='28.166666666666668' title='per seed 1 / 2 / 3; success 48/48'><b>28</b><br>24 / 29 / 32<br>29.1 / 36.8 / 31.1</td><td class='n' data-v='27.125' title='per seed 1 / 2 / 3; success 48/48'><b>27</b><br>30 / 25 / 27<br>30.6 / 29.9 / 28.8</td><td class='n' data-v='46.729166666666664' title='per seed 1 / 2 / 3; success 48/48'><b>47</b><br>58 / 48 / 34<br>14.2 / 17.4 / 18.9</td><td class='n'>AR 8/48<br>DD 18/48<br>Flow 19/48</td></tr><tr id='s7257' data-rank='20' data-bg='43'><td><b>7257</b><br>easy<br>rank 21<br><a href='baseline.html#start=7257'>replay</a></td><td class='n'>43 px<br>120°</td><td><img loading='lazy' src='img/browser/start_7257.png' alt='start 7257'></td><td class='n' data-v='29.458333333333332' title='per seed 1 / 2 / 3; success 48/48'><b>29</b><br>29 / 30 / 29<br>37.5 / 37.3 / 38.2</td><td class='n' data-v='29.854166666666668' title='per seed 1 / 2 / 3; success 48/48'><b>30</b><br>30 / 30 / 30<br>33.5 / 39.4 / 37.6</td><td class='n' data-v='42.770833333333336' title='per seed 1 / 2 / 3; success 48/48'><b>43</b><br>48 / 46 / 34<br>14.2 / 15.8 / 19.2</td><td class='n'>AR 6/48<br>DD 15/48<br>Flow 13/48</td></tr><tr id='s15619' data-rank='21' data-bg='13'><td><b>15619</b><br>easy<br>rank 22<br><a href='baseline.html#start=15619'>replay</a></td><td class='n'>13 px<br>96°</td><td><img loading='lazy' src='img/browser/start_15619.png' alt='start 15619'></td><td class='n' data-v='24.625' title='per seed 1 / 2 / 3; success 48/48'><b>25</b><br>26 / 23 / 24<br>27.4 / 31.6 / 29.5</td><td class='n' data-v='25.958333333333332' title='per seed 1 / 2 / 3; success 48/48'><b>26</b><br>26 / 25 / 27<br>30.8 / 29.5 / 30.7</td><td class='n' data-v='51.916666666666664' title='per seed 1 / 2 / 3; success 48/48'><b>52</b><br>62 / 64 / 30<br>15.5 / 19.7 / 19.5</td><td class='n'>AR 13/48<br>DD 23/48<br>Flow 18/48</td></tr><tr id='s3859' data-rank='22' data-bg='88'><td><b>3859</b><br>median<br>rank 23<br><a href='baseline.html#start=3859'>replay</a></td><td class='n'>88 px<br>86°</td><td><img loading='lazy' src='img/browser/start_3859.png' alt='start 3859'></td><td class='n' data-v='27.479166666666668' title='per seed 1 / 2 / 3; success 48/48'><b>27</b><br>25 / 26 / 31<br>37.2 / 36.3 / 39.7</td><td class='n' data-v='24.166666666666668' title='per seed 1 / 2 / 3; success 48/48'><b>24</b><br>26 / 25 / 21<br>37.4 / 36.8 / 42.0</td><td class='n' data-v='51.375' title='per seed 1 / 2 / 3; success 48/48'><b>51</b><br>58 / 55 / 41<br>16.7 / 20.6 / 20.8</td><td class='n'>AR 12/48<br>DD 20/48<br>Flow 18/48</td></tr><tr id='s736' data-rank='23' data-bg='143'><td><b>736</b><br>median<br>rank 24<br><a href='baseline.html#start=736'>replay</a></td><td class='n'>143 px<br>100°</td><td><img loading='lazy' src='img/browser/start_736.png' alt='start 736'></td><td class='n' data-v='26.395833333333332' title='per seed 1 / 2 / 3; success 48/48'><b>26</b><br>28 / 25 / 27<br>39.6 / 38.9 / 40.8</td><td class='n' data-v='27.645833333333332' title='per seed 1 / 2 / 3; success 48/48'><b>28</b><br>25 / 31 / 27<br>39.6 / 42.6 / 43.8</td><td class='n' data-v='49.6875' title='per seed 1 / 2 / 3; success 48/48'><b>50</b><br>51 / 50 / 48<br>21.6 / 22.9 / 23.7</td><td class='n'>AR 4/48<br>DD 1/48<br>Flow 7/48</td></tr><tr id='s9431' data-rank='24' data-bg='91'><td><b>9431</b><br>median<br>rank 25<br><a href='baseline.html#start=9431'>replay</a></td><td class='n'>91 px<br>125°</td><td><img loading='lazy' src='img/browser/start_9431.png' alt='start 9431'></td><td class='n' data-v='30.270833333333332' title='per seed 1 / 2 / 3; success 48/48'><b>30</b><br>32 / 32 / 27<br>33.1 / 41.2 / 39.3</td><td class='n' data-v='22.729166666666668' title='per seed 1 / 2 / 3; success 48/48'><b>23</b><br>22 / 26 / 21<br>34.5 / 40.4 / 36.3</td><td class='n' data-v='51.020833333333336' title='per seed 1 / 2 / 3; success 48/48'><b>51</b><br>58 / 52 / 43<br>16.4 / 23.8 / 19.5</td><td class='n'>AR 11/48<br>DD 26/48<br>Flow 12/48</td></tr><tr id='s3733' data-rank='25' data-bg='78'><td><b>3733</b><br>median<br>rank 26<br><a href='baseline.html#start=3733'>replay</a></td><td class='n'>78 px<br>49°</td><td><img loading='lazy' src='img/browser/start_3733.png' alt='start 3733'></td><td class='n' data-v='27.229166666666668' title='per seed 1 / 2 / 3; success 48/48'><b>27</b><br>26 / 30 / 25<br>32.4 / 32.4 / 33.3</td><td class='n' data-v='26.75' title='per seed 1 / 2 / 3; success 48/48'><b>27</b><br>30 / 28 / 23<br>28.1 / 35.4 / 30.0</td><td class='n' data-v='50.229166666666664' title='per seed 1 / 2 / 3; success 48/48'><b>50</b><br>47 / 46 / 58<br>13.9 / 18.6 / 14.6</td><td class='n'>AR 14/48<br>DD 24/48<br>Flow 20/48</td></tr><tr id='s14183' data-rank='26' data-bg='120'><td><b>14183</b><br>median<br>rank 27<br><a href='baseline.html#start=14183'>replay</a></td><td class='n'>120 px<br>88°</td><td><img loading='lazy' src='img/browser/start_14183.png' alt='start 14183'></td><td class='n' data-v='27.520833333333332' title='per seed 1 / 2 / 3; success 48/48'><b>28</b><br>25 / 27 / 30<br>31.5 / 40.8 / 39.8</td><td class='n' data-v='29.604166666666668' title='per seed 1 / 2 / 3; success 48/48'><b>30</b><br>29 / 27 / 33<br>34.4 / 37.1 / 33.6</td><td class='n' data-v='48.041666666666664' title='per seed 1 / 2 / 3; success 48/48'><b>48</b><br>47 / 55 / 42<br>15.4 / 19.1 / 18.9</td><td class='n'>AR 9/48<br>DD 23/48<br>Flow 6/48</td></tr><tr id='s2113' data-rank='27' data-bg='104'><td><b>2113</b><br>median<br>rank 28<br><a href='baseline.html#start=2113'>replay</a></td><td class='n'>104 px<br>32°</td><td><img loading='lazy' src='img/browser/start_2113.png' alt='start 2113'></td><td class='n' data-v='22.958333333333332' title='per seed 1 / 2 / 3; success 48/48'><b>23</b><br>20 / 22 / 27<br>28.0 / 34.9 / 33.2</td><td class='n' data-v='25.375' title='per seed 1 / 2 / 3; success 48/48'><b>25</b><br>25 / 26 / 26<br>27.6 / 36.3 / 40.6</td><td class='n' data-v='57.416666666666664' title='per seed 1 / 2 / 3; success 48/48'><b>57</b><br>40 / 74 / 58<br>15.6 / 13.7 / 14.4</td><td class='n'>AR 12/48<br>DD 19/48<br>Flow 12/48</td></tr><tr id='s10620' data-rank='28' data-bg='26'><td><b>10620</b><br>median<br>rank 29<br><a href='baseline.html#start=10620'>replay</a></td><td class='n'>26 px<br>65°</td><td><img loading='lazy' src='img/browser/start_10620.png' alt='start 10620'></td><td class='n' data-v='24.791666666666668' title='per seed 1 / 2 / 3; success 48/48'><b>25</b><br>26 / 26 / 23<br>26.3 / 32.4 / 30.8</td><td class='n' data-v='30.270833333333332' title='per seed 1 / 2 / 3; success 48/48'><b>30</b><br>31 / 27 / 33<br>35.0 / 29.9 / 31.5</td><td class='n' data-v='51.708333333333336' title='per seed 1 / 2 / 3; success 48/48'><b>52</b><br>56 / 55 / 45<br>14.2 / 17.0 / 17.2</td><td class='n'>AR 19/48<br>DD 28/48<br>Flow 22/48</td></tr><tr id='s7968' data-rank='29' data-bg='29'><td><b>7968</b><br>median<br>rank 30<br><a href='baseline.html#start=7968'>replay</a></td><td class='n'>29 px<br>57°</td><td><img loading='lazy' src='img/browser/start_7968.png' alt='start 7968'></td><td class='n' data-v='27.6875' title='per seed 1 / 2 / 3; success 48/48'><b>28</b><br>31 / 27 / 25<br>31.4 / 32.5 / 35.9</td><td class='n' data-v='26.070833333333336' title='per seed 1 / 2 / 3; success 47/48'><b>26</b><br>27 / 25 / 26<br>34.1 / 38.2 / 30.2<br>47/48 succ</td><td class='n' data-v='53.520833333333336' title='per seed 1 / 2 / 3; success 48/48'><b>54</b><br>46 / 44 / 70<br>18.4 / 15.3 / 14.7</td><td class='n'>AR 11/48<br>DD 19/48<br>Flow 23/48</td></tr><tr id='s7578' data-rank='30' data-bg='129'><td><b>7578</b><br>median<br>rank 31<br><a href='baseline.html#start=7578'>replay</a></td><td class='n'>129 px<br>79°</td><td><img loading='lazy' src='img/browser/start_7578.png' alt='start 7578'></td><td class='n' data-v='26.770833333333332' title='per seed 1 / 2 / 3; success 48/48'><b>27</b><br>22 / 27 / 31<br>40.8 / 40.6 / 39.2</td><td class='n' data-v='28.020833333333332' title='per seed 1 / 2 / 3; success 48/48'><b>28</b><br>28 / 27 / 29<br>39.2 / 42.2 / 44.0</td><td class='n' data-v='52.791666666666664' title='per seed 1 / 2 / 3; success 48/48'><b>53</b><br>55 / 50 / 54<br>16.6 / 17.7 / 21.4</td><td class='n'>AR 9/48<br>DD 11/48<br>Flow 23/48</td></tr><tr id='s3942' data-rank='31' data-bg='78'><td><b>3942</b><br>median<br>rank 32<br><a href='baseline.html#start=3942'>replay</a></td><td class='n'>78 px<br>131°</td><td><img loading='lazy' src='img/browser/start_3942.png' alt='start 3942'></td><td class='n' data-v='26.875' title='per seed 1 / 2 / 3; success 48/48'><b>27</b><br>25 / 23 / 33<br>36.6 / 37.5 / 40.9</td><td class='n' data-v='24.25' title='per seed 1 / 2 / 3; success 48/48'><b>24</b><br>27 / 23 / 23<br>38.0 / 37.8 / 35.6</td><td class='n' data-v='56.666666666666664' title='per seed 1 / 2 / 3; success 48/48'><b>57</b><br>65 / 54 / 51<br>15.5 / 19.0 / 21.6</td><td class='n'>AR 8/48<br>DD 10/48<br>Flow 7/48</td></tr><tr id='s11461' data-rank='32' data-bg='100'><td><b>11461</b><br>median<br>rank 33<br><a href='baseline.html#start=11461'>replay</a></td><td class='n'>100 px<br>115°</td><td><img loading='lazy' src='img/browser/start_11461.png' alt='start 11461'></td><td class='n' data-v='25.479166666666668' title='per seed 1 / 2 / 3; success 48/48'><b>25</b><br>27 / 29 / 20<br>36.8 / 39.4 / 39.9</td><td class='n' data-v='24.270833333333332' title='per seed 1 / 2 / 3; success 48/48'><b>24</b><br>25 / 24 / 24<br>35.1 / 38.7 / 39.0</td><td class='n' data-v='58.5625' title='per seed 1 / 2 / 3; success 48/48'><b>59</b><br>58 / 63 / 55<br>15.5 / 17.1 / 19.4</td><td class='n'>AR 9/48<br>DD 23/48<br>Flow 12/48</td></tr><tr id='s6433' data-rank='33' data-bg='108'><td><b>6433</b><br>median<br>rank 34<br><a href='baseline.html#start=6433'>replay</a></td><td class='n'>108 px<br>177°</td><td><img loading='lazy' src='img/browser/start_6433.png' alt='start 6433'></td><td class='n' data-v='27.875' title='per seed 1 / 2 / 3; success 48/48'><b>28</b><br>25 / 31 / 27<br>40.4 / 46.6 / 40.4</td><td class='n' data-v='25.0' title='per seed 1 / 2 / 3; success 48/48'><b>25</b><br>25 / 25 / 25<br>39.5 / 40.2 / 41.3</td><td class='n' data-v='56.104166666666664' title='per seed 1 / 2 / 3; success 48/48'><b>56</b><br>62 / 49 / 57<br>18.1 / 19.9 / 23.8</td><td class='n'>AR 7/48<br>DD 1/48<br>Flow 12/48</td></tr><tr id='s3613' data-rank='34' data-bg='125'><td><b>3613</b><br>median<br>rank 35<br><a href='baseline.html#start=3613'>replay</a></td><td class='n'>125 px<br>109°</td><td><img loading='lazy' src='img/browser/start_3613.png' alt='start 3613'></td><td class='n' data-v='29.75' title='per seed 1 / 2 / 3; success 48/48'><b>30</b><br>31 / 24 / 35<br>47.3 / 38.4 / 43.8</td><td class='n' data-v='30.166666666666668' title='per seed 1 / 2 / 3; success 48/48'><b>30</b><br>29 / 32 / 29<br>39.2 / 42.7 / 45.2</td><td class='n' data-v='49.25' title='per seed 1 / 2 / 3; success 48/48'><b>49</b><br>52 / 49 / 47<br>15.4 / 19.6 / 18.9</td><td class='n'>AR 18/48<br>DD 26/48<br>Flow 26/48</td></tr><tr id='s19939' data-rank='35' data-bg='112'><td><b>19939</b><br>median<br>rank 36<br><a href='baseline.html#start=19939'>replay</a></td><td class='n'>112 px<br>163°</td><td><img loading='lazy' src='img/browser/start_19939.png' alt='start 19939'></td><td class='n' data-v='23.5625' title='per seed 1 / 2 / 3; success 48/48'><b>24</b><br>23 / 24 / 24<br>40.5 / 39.0 / 42.0</td><td class='n' data-v='25.5625' title='per seed 1 / 2 / 3; success 48/48'><b>26</b><br>26 / 26 / 24<br>37.8 / 42.0 / 42.6</td><td class='n' data-v='60.354166666666664' title='per seed 1 / 2 / 3; success 48/48'><b>60</b><br>55 / 51 / 74<br>19.1 / 20.9 / 23.8</td><td class='n'>AR 7/48<br>DD 3/48<br>Flow 22/48</td></tr><tr id='s2410' data-rank='36' data-bg='150'><td><b>2410</b><br>median<br>rank 37<br><a href='baseline.html#start=2410'>replay</a></td><td class='n'>150 px<br>21°</td><td><img loading='lazy' src='img/browser/start_2410.png' alt='start 2410'></td><td class='n' data-v='30.3125' title='per seed 1 / 2 / 3; success 48/48'><b>30</b><br>33 / 27 / 31<br>28.8 / 40.8 / 35.0</td><td class='n' data-v='26.125' title='per seed 1 / 2 / 3; success 48/48'><b>26</b><br>26 / 29 / 23<br>28.1 / 36.3 / 33.7</td><td class='n' data-v='53.041666666666664' title='per seed 1 / 2 / 3; success 48/48'><b>53</b><br>58 / 50 / 51<br>15.1 / 16.7 / 18.4</td><td class='n'>AR 11/48<br>DD 18/48<br>Flow 19/48</td></tr><tr id='s3564' data-rank='37' data-bg='161'><td><b>3564</b><br>median<br>rank 38<br><a href='baseline.html#start=3564'>replay</a></td><td class='n'>161 px<br>5°</td><td><img loading='lazy' src='img/browser/start_3564.png' alt='start 3564'></td><td class='n' data-v='28.458333333333332' title='per seed 1 / 2 / 3; success 48/48'><b>28</b><br>26 / 26 / 33<br>31.9 / 30.3 / 35.2</td><td class='n' data-v='26.583333333333332' title='per seed 1 / 2 / 3; success 48/48'><b>27</b><br>30 / 25 / 25<br>31.0 / 36.7 / 33.8</td><td class='n' data-v='55.166666666666664' title='per seed 1 / 2 / 3; success 48/48'><b>55</b><br>51 / 39 / 76<br>16.5 / 20.0 / 16.4</td><td class='n'>AR 8/48<br>DD 25/48<br>Flow 20/48</td></tr><tr id='s14064' data-rank='38' data-bg='170'><td><b>14064</b><br>median<br>rank 39<br><a href='baseline.html#start=14064'>replay</a></td><td class='n'>170 px<br>26°</td><td><img loading='lazy' src='img/browser/start_14064.png' alt='start 14064'></td><td class='n' data-v='28.979166666666668' title='per seed 1 / 2 / 3; success 48/48'><b>29</b><br>29 / 31 / 27<br>32.3 / 35.8 / 32.1</td><td class='n' data-v='27.8125' title='per seed 1 / 2 / 3; success 48/48'><b>28</b><br>32 / 26 / 25<br>36.3 / 36.7 / 34.5</td><td class='n' data-v='54.833333333333336' title='per seed 1 / 2 / 3; success 48/48'><b>55</b><br>51 / 44 / 69<br>15.2 / 20.2 / 17.5</td><td class='n'>AR 9/48<br>DD 20/48<br>Flow 13/48</td></tr><tr id='s17670' data-rank='39' data-bg='137'><td><b>17670</b><br>median<br>rank 40<br><a href='baseline.html#start=17670'>replay</a></td><td class='n'>137 px<br>165°</td><td><img loading='lazy' src='img/browser/start_17670.png' alt='start 17670'></td><td class='n' data-v='29.0625' title='per seed 1 / 2 / 3; success 48/48'><b>29</b><br>29 / 29 / 29<br>35.6 / 36.8 / 35.2</td><td class='n' data-v='27.666666666666668' title='per seed 1 / 2 / 3; success 48/48'><b>28</b><br>30 / 26 / 27<br>39.2 / 39.0 / 36.4</td><td class='n' data-v='55.604166666666664' title='per seed 1 / 2 / 3; success 48/48'><b>56</b><br>58 / 52 / 57<br>17.2 / 21.0 / 22.8</td><td class='n'>AR 1/48<br>DD 1/48<br>Flow 9/48</td></tr><tr id='s1280' data-rank='40' data-bg='50'><td><b>1280</b><br>median<br>rank 41<br><a href='baseline.html#start=1280'>replay</a></td><td class='n'>50 px<br>151°</td><td><img loading='lazy' src='img/browser/start_1280.png' alt='start 1280'></td><td class='n' data-v='30.520833333333332' title='per seed 1 / 2 / 3; success 48/48'><b>31</b><br>30 / 30 / 31<br>37.5 / 36.5 / 36.8</td><td class='n' data-v='30.833333333333332' title='per seed 1 / 2 / 3; success 48/48'><b>31</b><br>33 / 31 / 28<br>38.6 / 39.8 / 34.5</td><td class='n' data-v='52.583333333333336' title='per seed 1 / 2 / 3; success 48/48'><b>53</b><br>57 / 47 / 53<br>18.6 / 21.2 / 17.7</td><td class='n'>AR 8/48<br>DD 18/48<br>Flow 28/48</td></tr><tr id='s17188' data-rank='41' data-bg='57'><td><b>17188</b><br>median<br>rank 42<br><a href='baseline.html#start=17188'>replay</a></td><td class='n'>57 px<br>149°</td><td><img loading='lazy' src='img/browser/start_17188.png' alt='start 17188'></td><td class='n' data-v='29.520833333333332' title='per seed 1 / 2 / 3; success 48/48'><b>30</b><br>29 / 26 / 33<br>34.5 / 37.0 / 32.1</td><td class='n' data-v='30.270833333333332' title='per seed 1 / 2 / 3; success 48/48'><b>30</b><br>33 / 25 / 32<br>32.2 / 29.2 / 34.6</td><td class='n' data-v='54.520833333333336' title='per seed 1 / 2 / 3; success 48/48'><b>55</b><br>75 / 55 / 34<br>14.5 / 16.2 / 17.7</td><td class='n'>AR 7/48<br>DD 11/48<br>Flow 0/48</td></tr><tr id='s7881' data-rank='42' data-bg='125'><td><b>7881</b><br>median<br>rank 43<br><a href='baseline.html#start=7881'>replay</a></td><td class='n'>125 px<br>89°</td><td><img loading='lazy' src='img/browser/start_7881.png' alt='start 7881'></td><td class='n' data-v='25.1875' title='per seed 1 / 2 / 3; success 48/48'><b>25</b><br>26 / 24 / 25<br>41.7 / 44.4 / 43.6</td><td class='n' data-v='26.3125' title='per seed 1 / 2 / 3; success 48/48'><b>26</b><br>26 / 26 / 27<br>41.9 / 44.4 / 47.2</td><td class='n' data-v='63.270833333333336' title='per seed 1 / 2 / 3; success 48/48'><b>63</b><br>68 / 57 / 65<br>20.0 / 23.0 / 19.8</td><td class='n'>AR 3/48<br>DD 0/48<br>Flow 13/48</td></tr><tr id='s12843' data-rank='43' data-bg='85'><td><b>12843</b><br>hard<br>rank 44<br><a href='baseline.html#start=12843'>replay</a></td><td class='n'>85 px<br>47°</td><td><img loading='lazy' src='img/browser/start_12843.png' alt='start 12843'></td><td class='n' data-v='22.458333333333332' title='per seed 1 / 2 / 3; success 48/48'><b>22</b><br>21 / 22 / 25<br>41.8 / 41.9 / 42.3</td><td class='n' data-v='23.63611111111111' title='per seed 1 / 2 / 3; success 47/48'><b>24</b><br>21 / 25 / 26<br>45.3 / 40.9 / 39.4<br>47/48 succ</td><td class='n' data-v='69.97916666666667' title='per seed 1 / 2 / 3; success 48/48'><b>70</b><br>74 / 63 / 73<br>15.3 / 15.1 / 14.1</td><td class='n'>AR 13/48<br>DD 28/48<br>Flow 6/48</td></tr><tr id='s9045' data-rank='44' data-bg='110'><td><b>9045</b><br>hard<br>rank 45<br><a href='baseline.html#start=9045'>replay</a></td><td class='n'>110 px<br>134°</td><td><img loading='lazy' src='img/browser/start_9045.png' alt='start 9045'></td><td class='n' data-v='29.541666666666668' title='per seed 1 / 2 / 3; success 48/48'><b>30</b><br>33 / 29 / 26<br>37.5 / 35.7 / 36.3</td><td class='n' data-v='33.020833333333336' title='per seed 1 / 2 / 3; success 48/48'><b>33</b><br>31 / 36 / 32<br>37.2 / 41.3 / 45.0</td><td class='n' data-v='53.875' title='per seed 1 / 2 / 3; success 48/48'><b>54</b><br>60 / 58 / 43<br>19.3 / 20.8 / 22.9</td><td class='n'>AR 7/48<br>DD 6/48<br>Flow 14/48</td></tr><tr id='s10920' data-rank='45' data-bg='97'><td><b>10920</b><br>hard<br>rank 46<br><a href='baseline.html#start=10920'>replay</a></td><td class='n'>97 px<br>164°</td><td><img loading='lazy' src='img/browser/start_10920.png' alt='start 10920'></td><td class='n' data-v='26.25' title='per seed 1 / 2 / 3; success 48/48'><b>26</b><br>24 / 26 / 29<br>31.8 / 32.2 / 29.1</td><td class='n' data-v='30.584722222222222' title='per seed 1 / 2 / 3; success 47/48'><b>31</b><br>33 / 26 / 33<br>40.8 / 30.9 / 35.1<br>47/48 succ</td><td class='n' data-v='59.916666666666664' title='per seed 1 / 2 / 3; success 48/48'><b>60</b><br>60 / 71 / 48<br>15.2 / 18.4 / 17.4</td><td class='n'>AR 8/48<br>DD 20/48<br>Flow 17/48</td></tr><tr id='s9598' data-rank='46' data-bg='62'><td><b>9598</b><br>hard<br>rank 47<br><a href='baseline.html#start=9598'>replay</a></td><td class='n'>62 px<br>138°</td><td><img loading='lazy' src='img/browser/start_9598.png' alt='start 9598'></td><td class='n' data-v='32.291666666666664' title='per seed 1 / 2 / 3; success 48/48'><b>32</b><br>29 / 32 / 36<br>37.5 / 35.7 / 37.9</td><td class='n' data-v='33.458333333333336' title='per seed 1 / 2 / 3; success 48/48'><b>33</b><br>34 / 36 / 31<br>44.7 / 41.6 / 40.5</td><td class='n' data-v='52.104166666666664' title='per seed 1 / 2 / 3; success 48/48'><b>52</b><br>59 / 59 / 39<br>15.6 / 17.7 / 23.0</td><td class='n'>AR 12/48<br>DD 8/48<br>Flow 13/48</td></tr><tr id='s3949' data-rank='47' data-bg='110'><td><b>3949</b><br>hard<br>rank 48<br><a href='baseline.html#start=3949'>replay</a></td><td class='n'>110 px<br>174°</td><td><img loading='lazy' src='img/browser/start_3949.png' alt='start 3949'></td><td class='n' data-v='30.4375' title='per seed 1 / 2 / 3; success 48/48'><b>30</b><br>26 / 32 / 34<br>37.1 / 39.1 / 35.6</td><td class='n' data-v='30.0' title='per seed 1 / 2 / 3; success 48/48'><b>30</b><br>26 / 28 / 36<br>37.2 / 41.1 / 39.3</td><td class='n' data-v='57.583333333333336' title='per seed 1 / 2 / 3; success 48/48'><b>58</b><br>65 / 53 / 55<br>14.9 / 16.9 / 20.8</td><td class='n'>AR 5/48<br>DD 8/48<br>Flow 20/48</td></tr><tr id='s1747' data-rank='48' data-bg='133'><td><b>1747</b><br>hard<br>rank 49<br><a href='baseline.html#start=1747'>replay</a></td><td class='n'>133 px<br>62°</td><td><img loading='lazy' src='img/browser/start_1747.png' alt='start 1747'></td><td class='n' data-v='28.354166666666668' title='per seed 1 / 2 / 3; success 48/48'><b>28</b><br>27 / 25 / 33<br>40.9 / 43.2 / 38.4</td><td class='n' data-v='30.0' title='per seed 1 / 2 / 3; success 48/48'><b>30</b><br>29 / 32 / 29<br>39.4 / 45.9 / 41.3</td><td class='n' data-v='61.166666666666664' title='per seed 1 / 2 / 3; success 48/48'><b>61</b><br>67 / 59 / 57<br>20.4 / 22.6 / 20.6</td><td class='n'>AR 1/48<br>DD 1/48<br>Flow 19/48</td></tr><tr id='s19733' data-rank='49' data-bg='158'><td><b>19733</b><br>hard<br>rank 50<br><a href='baseline.html#start=19733'>replay</a></td><td class='n'>158 px<br>144°</td><td><img loading='lazy' src='img/browser/start_19733.png' alt='start 19733'></td><td class='n' data-v='30.854166666666668' title='per seed 1 / 2 / 3; success 48/48'><b>31</b><br>32 / 29 / 31<br>34.9 / 38.1 / 44.7</td><td class='n' data-v='31.26805555555556' title='per seed 1 / 2 / 3; success 47/48'><b>31</b><br>28 / 36 / 30<br>39.7 / 38.7 / 44.8<br>47/48 succ</td><td class='n' data-v='59.979166666666664' title='per seed 1 / 2 / 3; success 48/48'><b>60</b><br>64 / 62 / 54<br>19.3 / 21.3 / 22.9</td><td class='n'>AR 0/48<br>DD 0/48<br>Flow 10/48</td></tr><tr id='s12701' data-rank='50' data-bg='105'><td><b>12701</b><br>hard<br>rank 51<br><a href='baseline.html#start=12701'>replay</a></td><td class='n'>105 px<br>12°</td><td><img loading='lazy' src='img/browser/start_12701.png' alt='start 12701'></td><td class='n' data-v='33.583333333333336' title='per seed 1 / 2 / 3; success 48/48'><b>34</b><br>31 / 27 / 42<br>26.7 / 29.7 / 43.1</td><td class='n' data-v='29.979166666666668' title='per seed 1 / 2 / 3; success 48/48'><b>30</b><br>39 / 26 / 25<br>43.1 / 38.8 / 31.4</td><td class='n' data-v='59.395833333333336' title='per seed 1 / 2 / 3; success 48/48'><b>59</b><br>48 / 57 / 73<br>18.0 / 16.8 / 16.6</td><td class='n'>AR 12/48<br>DD 24/48<br>Flow 31/48</td></tr><tr id='s16789' data-rank='51' data-bg='175'><td><b>16789</b><br>hard<br>rank 52<br><a href='baseline.html#start=16789'>replay</a></td><td class='n'>175 px<br>101°</td><td><img loading='lazy' src='img/browser/start_16789.png' alt='start 16789'></td><td class='n' data-v='27.791666666666668' title='per seed 1 / 2 / 3; success 48/48'><b>28</b><br>27 / 27 / 29<br>31.3 / 39.4 / 34.2</td><td class='n' data-v='28.354166666666668' title='per seed 1 / 2 / 3; success 48/48'><b>28</b><br>24 / 34 / 26<br>34.5 / 40.3 / 31.5</td><td class='n' data-v='67.25' title='per seed 1 / 2 / 3; success 48/48'><b>67</b><br>67 / 48 / 87<br>16.3 / 19.3 / 16.2</td><td class='n'>AR 12/48<br>DD 10/48<br>Flow 21/48</td></tr><tr id='s8039' data-rank='52' data-bg='153'><td><b>8039</b><br>hard<br>rank 53<br><a href='baseline.html#start=8039'>replay</a></td><td class='n'>153 px<br>172°</td><td><img loading='lazy' src='img/browser/start_8039.png' alt='start 8039'></td><td class='n' data-v='34.083333333333336' title='per seed 1 / 2 / 3; success 48/48'><b>34</b><br>34 / 35 / 34<br>39.4 / 39.1 / 40.1</td><td class='n' data-v='34.5' title='per seed 1 / 2 / 3; success 48/48'><b>34</b><br>34 / 36 / 34<br>35.4 / 39.2 / 42.7</td><td class='n' data-v='55.854166666666664' title='per seed 1 / 2 / 3; success 48/48'><b>56</b><br>69 / 49 / 49<br>14.0 / 17.7 / 18.7</td><td class='n'>AR 9/48<br>DD 7/48<br>Flow 19/48</td></tr><tr id='s18235' data-rank='53' data-bg='157'><td><b>18235</b><br>hard<br>rank 54<br><a href='baseline.html#start=18235'>replay</a></td><td class='n'>157 px<br>153°</td><td><img loading='lazy' src='img/browser/start_18235.png' alt='start 18235'></td><td class='n' data-v='25.708333333333332' title='per seed 1 / 2 / 3; success 48/48'><b>26</b><br>27 / 26 / 24<br>30.2 / 31.6 / 32.8</td><td class='n' data-v='24.145833333333332' title='per seed 1 / 2 / 3; success 48/48'><b>24</b><br>22 / 26 / 24<br>34.0 / 35.0 / 31.4</td><td class='n' data-v='74.875' title='per seed 1 / 2 / 3; success 48/48'><b>75</b><br>73 / 90 / 62<br>16.0 / 16.9 / 19.9</td><td class='n'>AR 1/48<br>DD 7/48<br>Flow 17/48</td></tr><tr id='s4124' data-rank='54' data-bg='129'><td><b>4124</b><br>hard<br>rank 55<br><a href='baseline.html#start=4124'>replay</a></td><td class='n'>129 px<br>152°</td><td><img loading='lazy' src='img/browser/start_4124.png' alt='start 4124'></td><td class='n' data-v='29.958333333333332' title='per seed 1 / 2 / 3; success 48/48'><b>30</b><br>31 / 27 / 32<br>42.8 / 33.8 / 44.7</td><td class='n' data-v='32.645833333333336' title='per seed 1 / 2 / 3; success 48/48'><b>33</b><br>32 / 35 / 31<br>41.7 / 40.3 / 43.9</td><td class='n' data-v='62.354166666666664' title='per seed 1 / 2 / 3; success 48/48'><b>62</b><br>73 / 59 / 55<br>14.1 / 18.5 / 14.0</td><td class='n'>AR 8/48<br>DD 8/48<br>Flow 0/48</td></tr><tr id='s6469' data-rank='55' data-bg='139'><td><b>6469</b><br>hard<br>rank 56<br><a href='baseline.html#start=6469'>replay</a></td><td class='n'>139 px<br>109°</td><td><img loading='lazy' src='img/browser/start_6469.png' alt='start 6469'></td><td class='n' data-v='35.041666666666664' title='per seed 1 / 2 / 3; success 48/48'><b>35</b><br>33 / 40 / 32<br>35.9 / 38.9 / 34.9</td><td class='n' data-v='35.3125' title='per seed 1 / 2 / 3; success 48/48'><b>35</b><br>33 / 30 / 42<br>31.8 / 34.7 / 37.9</td><td class='n' data-v='55.1875' title='per seed 1 / 2 / 3; success 48/48'><b>55</b><br>65 / 54 / 46<br>17.6 / 21.1 / 22.0</td><td class='n'>AR 9/48<br>DD 6/48<br>Flow 8/48</td></tr><tr id='s408' data-rank='56' data-bg='176'><td><b>408</b><br>hard<br>rank 57<br><a href='baseline.html#start=408'>replay</a></td><td class='n'>176 px<br>65°</td><td><img loading='lazy' src='img/browser/start_408.png' alt='start 408'></td><td class='n' data-v='30.791666666666668' title='per seed 1 / 2 / 3; success 48/48'><b>31</b><br>34 / 31 / 27<br>41.3 / 39.3 / 46.2</td><td class='n' data-v='32.020833333333336' title='per seed 1 / 2 / 3; success 48/48'><b>32</b><br>33 / 36 / 27<br>43.7 / 38.2 / 36.9</td><td class='n' data-v='66.72916666666667' title='per seed 1 / 2 / 3; success 48/48'><b>67</b><br>67 / 54 / 79<br>15.6 / 17.3 / 16.8</td><td class='n'>AR 0/48<br>DD 0/48<br>Flow 0/48</td></tr><tr id='s16420' data-rank='57' data-bg='185'><td><b>16420</b><br>hard<br>rank 58<br><a href='baseline.html#start=16420'>replay</a></td><td class='n'>185 px<br>154°</td><td><img loading='lazy' src='img/browser/start_16420.png' alt='start 16420'></td><td class='n' data-v='32.291666666666664' title='per seed 1 / 2 / 3; success 48/48'><b>32</b><br>33 / 34 / 30<br>38.4 / 37.6 / 37.1</td><td class='n' data-v='31.083333333333332' title='per seed 1 / 2 / 3; success 48/48'><b>31</b><br>32 / 28 / 34<br>37.8 / 37.1 / 40.1</td><td class='n' data-v='68.4375' title='per seed 1 / 2 / 3; success 48/48'><b>68</b><br>72 / 73 / 61<br>15.8 / 17.7 / 19.4</td><td class='n'>AR 0/48<br>DD 0/48<br>Flow 0/48</td></tr><tr id='s10470' data-rank='58' data-bg='170'><td><b>10470</b><br>hard<br>rank 59<br><a href='baseline.html#start=10470'>replay</a></td><td class='n'>170 px<br>113°</td><td><img loading='lazy' src='img/browser/start_10470.png' alt='start 10470'></td><td class='n' data-v='30.229166666666668' title='per seed 1 / 2 / 3; success 48/48'><b>30</b><br>30 / 31 / 30<br>41.1 / 48.6 / 39.1</td><td class='n' data-v='35.8125' title='per seed 1 / 2 / 3; success 48/48'><b>36</b><br>33 / 37 / 37<br>42.4 / 40.8 / 36.4</td><td class='n' data-v='70.64583333333333' title='per seed 1 / 2 / 3; success 48/48'><b>71</b><br>69 / 83 / 61<br>17.6 / 17.6 / 19.5</td><td class='n'>AR 11/48<br>DD 22/48<br>Flow 19/48</td></tr><tr id='s4752' data-rank='59' data-bg='158'><td><b>4752</b><br>hard<br>rank 60<br><a href='baseline.html#start=4752'>replay</a></td><td class='n'>158 px<br>132°</td><td><img loading='lazy' src='img/browser/start_4752.png' alt='start 4752'></td><td class='n' data-v='33.3125' title='per seed 1 / 2 / 3; success 48/48'><b>33</b><br>31 / 32 / 37<br>45.2 / 49.8 / 41.3</td><td class='n' data-v='31.666666666666668' title='per seed 1 / 2 / 3; success 48/48'><b>32</b><br>33 / 30 / 32<br>44.4 / 43.8 / 46.6</td><td class='n' data-v='72.625' title='per seed 1 / 2 / 3; success 48/48'><b>73</b><br>81 / 74 / 63<br>20.0 / 20.0 / 23.9</td><td class='n'>AR 9/48<br>DD 15/48<br>Flow 26/48</td></tr><tr id='s5949' data-rank='60' data-bg='132'><td><b>5949</b><br>hard<br>rank 61<br><a href='baseline.html#start=5949'>replay</a></td><td class='n'>132 px<br>145°</td><td><img loading='lazy' src='img/browser/start_5949.png' alt='start 5949'></td><td class='n' data-v='35.4375' title='per seed 1 / 2 / 3; success 48/48'><b>35</b><br>31 / 34 / 41<br>47.1 / 44.1 / 46.5</td><td class='n' data-v='35.25' title='per seed 1 / 2 / 3; success 48/48'><b>35</b><br>34 / 31 / 41<br>42.9 / 44.6 / 43.1</td><td class='n' data-v='67.77083333333333' title='per seed 1 / 2 / 3; success 48/48'><b>68</b><br>65 / 74 / 65<br>17.1 / 19.4 / 21.6</td><td class='n'>AR 14/48<br>DD 24/48<br>Flow 13/48</td></tr><tr id='s3981' data-rank='61' data-bg='153'><td><b>3981</b><br>hard<br>rank 62<br><a href='baseline.html#start=3981'>replay</a></td><td class='n'>153 px<br>90°</td><td><img loading='lazy' src='img/browser/start_3981.png' alt='start 3981'></td><td class='n' data-v='34.64903846153846' title='per seed 1 / 2 / 3; success 45/48'><b>35</b><br>35 / 38 / 31<br>45.9 / 40.6 / 42.7<br>45/48 succ</td><td class='n' data-v='36.84583333333333' title='per seed 1 / 2 / 3; success 47/48'><b>37</b><br>33 / 32 / 46<br>40.2 / 41.0 / 44.7<br>47/48 succ</td><td class='n' data-v='68.0' title='per seed 1 / 2 / 3; success 48/48'><b>68</b><br>70 / 53 / 80<br>17.5 / 22.2 / 20.7</td><td class='n'>AR 2/48<br>DD 0/48<br>Flow 15/48</td></tr><tr id='s1531' data-rank='62' data-bg='146'><td><b>1531</b><br>hard<br>rank 63<br><a href='baseline.html#start=1531'>replay</a></td><td class='n'>146 px<br>169°</td><td><img loading='lazy' src='img/browser/start_1531.png' alt='start 1531'></td><td class='n' data-v='30.229166666666668' title='per seed 1 / 2 / 3; success 48/48'><b>30</b><br>30 / 30 / 31<br>44.3 / 44.7 / 44.8</td><td class='n' data-v='36.8125' title='per seed 1 / 2 / 3; success 48/48'><b>37</b><br>30 / 34 / 47<br>43.2 / 52.2 / 42.4</td><td class='n' data-v='72.83333333333333' title='per seed 1 / 2 / 3; success 48/48'><b>73</b><br>80 / 81 / 57<br>20.4 / 19.9 / 25.0</td><td class='n'>AR 0/48<br>DD 0/48<br>Flow 4/48</td></tr><tr id='s4595' data-rank='63' data-bg='171'><td><b>4595</b><br>hard<br>rank 64<br><a href='baseline.html#start=4595'>replay</a></td><td class='n'>171 px<br>76°</td><td><img loading='lazy' src='img/browser/start_4595.png' alt='start 4595'></td><td class='n' data-v='34.291666666666664' title='per seed 1 / 2 / 3; success 48/48'><b>34</b><br>32 / 33 / 38<br>41.8 / 41.2 / 42.7</td><td class='n' data-v='34.5' title='per seed 1 / 2 / 3; success 48/48'><b>34</b><br>41 / 32 / 31<br>43.4 / 37.6 / 36.7</td><td class='n' data-v='73.875' title='per seed 1 / 2 / 3; success 48/48'><b>74</b><br>72 / 83 / 66<br>14.9 / 13.8 / 18.8</td><td class='n'>AR 0/48<br>DD 0/48<br>Flow 0/48</td></tr></table></div><script>document.querySelectorAll('table.sv th[data-k]').forEach(th=>th.onclick=()=>{const k=th.dataset.k;const tb=th.closest('table').tBodies[0];const rows=[...tb.rows].slice(1);const col=th.cellIndex;const key=r=>k==='rank'?+r.dataset.rank:k==='bg'?+r.dataset.bg:+r.cells[col].dataset.v;rows.sort((a,b)=>key(a)-key(b)).forEach(r=>tb.appendChild(r));});</script></main></body></html>
