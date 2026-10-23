@@ -16,14 +16,15 @@ select,button{font:inherit}
 <p class="cap">Standard PushT actions (each action is the target point on the 512 × 512 px board), attention policies.
 Each colored dot is one rollout's pusher with its trail; the outline in the same color is that rollout's T.
 Colors are route modes (first 400 px of path) from clustering the BC and RL rollouts of this start together (same color =
-same route in both panels, grey = a route taken by a single rollout). Green = goal pose. A rollout stops moving when it
+same route in both panels, grey = a route taken by a single rollout). Flow RL is the released OGPO sampler (tapered
+noise, score correction) at base noise σ = 0.04; flow BC is unchanged. Green = goal pose. A rollout stops moving when it
 ends (success, or 300 steps). Shown: 8 of 16 rollouts per policy type, start and seed; 6 representative
 starts x 3 seeds.</p>
 <script src="players_data.js"></script>
 <script>
 const D=window.MM_PLAYER,S=320/512;
 const fam=document.getElementById('fam'),st=document.getElementById('start'),sd=document.getElementById('seed');
-D.fams.forEach(f=>fam.add(new Option(f.toUpperCase()==='FLOW'?'flow':f.toUpperCase(),f)));
+D.fams.forEach(f=>fam.add(new Option(f==='flow'?(D.flow_label||'flow'):f.toUpperCase(),f)));
 D.starts.forEach(s=>st.add(new Option(s.label,s.idx)));[1,2,3].forEach(s=>sd.add(new Option(s,s)));
 let t=0,playing=true,maxT=1;
 function tee(ctx,x,y,a,fill,stroke,alpha){const R=[[[-60,30],[60,30],[60,0],[-60,0]],[[-15,30],[-15,120],[15,120],[15,30]]];
